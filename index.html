@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ezCAPTCHA - Antibot</title>
+  <title>ezCAPTCHA - Antibots</title>
   <style>
     :root {
       --ez-primary: #009ee3;
@@ -41,6 +41,32 @@
       width: 100%;
       max-width: 380px;
       border: 1px solid #334155;
+      position: relative;
+    }
+
+    /* Botón de Cambio de Idioma */
+    .ez-lang-btn {
+      position: absolute;
+      top: -12px;
+      right: 16px;
+      background: #334155;
+      color: white;
+      border: 1px solid #475569;
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+      transition: all 0.2s ease;
+    }
+
+    .ez-lang-btn:hover {
+      background: var(--ez-primary);
+      border-color: var(--ez-primary);
     }
 
     .ez-captcha-box {
@@ -54,6 +80,7 @@
       justify-content: space-between;
       user-select: none;
       transition: all 0.25s ease;
+      margin-top: 4px;
     }
 
     .ez-checkbox-wrapper {
@@ -411,6 +438,11 @@
 <body>
 
   <div class="ez-container">
+    <!-- BOTÓN DE CAMBIO DE IDIOMA -->
+    <button class="ez-lang-btn" onclick="toggleLanguage()">
+      🌐 <span id="ezLangLabel">ES</span>
+    </button>
+
     <div class="ez-captcha-box" id="ezCaptchaBox">
       <div class="ez-checkbox-wrapper" id="ezTriggerArea">
         <div class="ez-checkbox" id="ezCheckbox">
@@ -430,7 +462,7 @@
           </svg>
           <span class="ez-logo">ezCAPTCHA</span>
         </div>
-        <span class="ez-subtext">Biométrico Anti-Bot</span>
+        <span class="ez-subtext" id="ezSubtext">Biométrico Anti-Bot</span>
       </div>
     </div>
   </div>
@@ -439,14 +471,14 @@
   <div class="ez-modal-backdrop" id="ezChoiceModal">
     <div class="ez-modal">
       <div class="ez-modal-header">
-        <h3>Escaneo Biométrico de Mano ✋</h3>
+        <h3 id="ezChoiceTitle">Escaneo Biométrico de Mano ✋</h3>
       </div>
       <div class="ez-choice-body">
-        <p style="font-size: 0.9rem; margin-bottom: 15px; color: #64748b;">¿Qué cámara deseas utilizar?</p>
-        <button class="ez-choice-btn" onclick="startCamera('pc')">
+        <p style="font-size: 0.9rem; margin-bottom: 15px; color: #64748b;" id="ezChoicePrompt">¿Qué cámara deseas utilizar?</p>
+        <button class="ez-choice-btn" id="ezCamPcBtn" onclick="startCamera('pc')">
           💻 Usar WebCam de la PC
         </button>
-        <button class="ez-choice-btn" onclick="showQrCode()">
+        <button class="ez-choice-btn" id="ezCamMobileBtn" onclick="showQrCode()">
           📱 Escanear con Celular (Código QR)
         </button>
 
@@ -461,12 +493,12 @@
   <div class="ez-modal-backdrop" id="ezQrModal">
     <div class="ez-modal">
       <div class="ez-modal-header">
-        <h3>Escanear con Celular 📱</h3>
+        <h3 id="ezQrTitle">Escanear con Celular 📱</h3>
       </div>
       <div class="ez-qr-box">
         <p style="font-size: 0.85rem; color: #475569;" id="ezQrInstruction">Apunta tu teléfono al QR para continuar la prueba desde tu móvil:</p>
         <img class="ez-qr-img" src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://ezcaptcha.local/scan" alt="QR Code">
-        <button class="ez-choice-btn" onclick="closeQrModal()" style="margin-top: 10px;">Volver</button>
+        <button class="ez-choice-btn" id="ezQrBackBtn" onclick="closeQrModal()" style="margin-top: 10px;">Volver</button>
       </div>
     </div>
   </div>
@@ -498,7 +530,7 @@
     <div class="ez-modal">
       <div class="ez-modal-header">
         <div>
-          <h4 style="font-size: 0.75rem; opacity: 0.9;">Paso 2 / 3</h4>
+          <h4 style="font-size: 0.75rem; opacity: 0.9;" id="ezImgStepText">Paso 2 / 3</h4>
           <h3 id="ezTargetTitle">Cargando desafío...</h3>
         </div>
         <span class="ez-timer-badge">⏱️ <span id="ezImgTimer">5</span>s</span>
@@ -515,15 +547,15 @@
   <div class="ez-modal-backdrop" id="ezAudioChoiceModal">
     <div class="ez-modal">
       <div class="ez-modal-header">
-        <h3>Prueba Biométrica de Voz 🎙️</h3>
-        <span style="font-size: 0.75rem; background: #0077b5; padding: 3px 8px; border-radius: 4px;">Paso 3 / 3</span>
+        <h3 id="ezAudioChoiceTitle">Prueba Biométrica de Voz 🎙️</h3>
+        <span style="font-size: 0.75rem; background: #0077b5; padding: 3px 8px; border-radius: 4px;" id="ezAudioStepText">Paso 3 / 3</span>
       </div>
       <div class="ez-choice-body">
-        <p style="font-size: 0.9rem; margin-bottom: 15px; color: #64748b;">¿Qué micrófono deseas usar para grabar tu voz?</p>
-        <button class="ez-choice-btn" onclick="startVoiceRecording('pc')">
+        <p style="font-size: 0.9rem; margin-bottom: 15px; color: #64748b;" id="ezAudioChoicePrompt">¿Qué micrófono deseas usar para grabar tu voz?</p>
+        <button class="ez-choice-btn" id="ezMicPcBtn" onclick="startVoiceRecording('pc')">
           💻 Micrófono de la PC / WebCam
         </button>
-        <button class="ez-choice-btn" onclick="showAudioQrCode()">
+        <button class="ez-choice-btn" id="ezMicMobileBtn" onclick="showAudioQrCode()">
           📱 Micrófono del Celular (Vía QR)
         </button>
       </div>
@@ -534,7 +566,7 @@
   <div class="ez-modal-backdrop" id="ezVoiceModal">
     <div class="ez-modal">
       <div class="ez-modal-header">
-        <h3>Grabación y Análisis de Voz 🎙️</h3>
+        <h3 id="ezVoiceTitle">Grabación y Análisis de Voz 🎙️</h3>
         <span class="ez-timer-badge">⏱️ <span id="ezVoiceTimerDisplay">5</span>s</span>
       </div>
       <div class="ez-camera-view">
@@ -551,7 +583,9 @@
         <div class="ez-progress-fill" id="ezVoiceProgressFill"></div>
       </div>
       <div class="ez-scan-status" style="padding: 16px;">
-        <p id="ezVoiceInstruction" style="font-size: 0.88rem; color: #1e293b; margin-bottom: 8px;">Presiona grabar y di: <strong>"No soy un robot"</strong></p>
+        <p id="ezVoiceInstruction" style="font-size: 0.88rem; color: #1e293b; margin-bottom: 8px;">
+          Presiona grabar y di: <strong>"No soy un robot"</strong>
+        </p>
         <button class="ez-record-btn" id="ezRecordBtn" onclick="toggleVoiceRecording()">
           🔴 Presionar para Grabar
         </button>
@@ -562,6 +596,149 @@
   <canvas id="ezAnalysisCanvas" style="display:none;" width="160" height="120"></canvas>
 
   <script>
+    // SISTEMA DICCIONARIO DE IDIOMAS
+    let currentLang = 'es';
+
+    const translations = {
+      es: {
+        langBtn: "ES",
+        statusDefault: "No soy un robot",
+        attemptsLabel: "Intentos: ",
+        subtext: "Biométrico Anti-Bot",
+        choiceTitle: "Escaneo Biométrico de Mano ✋",
+        choicePrompt: "¿Qué cámara deseas utilizar?",
+        camPcBtn: "💻 Usar WebCam de la PC",
+        camMobileBtn: "📱 Escanear con Celular (Código QR)",
+        selectCamPlaceholder: "Seleccionar WebCam...",
+        qrTitle: "Escanear con Celular 📱",
+        qrInstruction: "Apunta tu teléfono al QR para continuar la prueba desde tu móvil:",
+        qrBackBtn: "Volver",
+        camSourceTitle: "Cámara PC Activa",
+        scanConnecting: "Conectando hardware de la PC...",
+        scanDetecting: "Mano detectada. Mantén la posición...",
+        scanNoHand: "Coloca tu mano frente a la cámara...",
+        scanSuccess: "¡Mano humana verificada correctamente!",
+        imgStepText: "Paso 2 / 3",
+        imgTargetTitle: "Selecciona todos los ",
+        verifyBtn: "CONTINUAR A VOZ 🎙️",
+        audioChoiceTitle: "Prueba Biométrica de Voz 🎙️",
+        audioStepText: "Paso 3 / 3",
+        audioChoicePrompt: "¿Qué micrófono deseas usar para grabar tu voz?",
+        micPcBtn: "💻 Micrófono de la PC / WebCam",
+        micMobileBtn: "📱 Micrófono del Celular (Vía QR)",
+        voiceTitle: "Grabación y Análisis de Voz 🎙️",
+        voiceInstruction: 'Presiona grabar y di: <strong>"No soy un robot"</strong>',
+        recordBtnDefault: "🔴 Presionar para Grabar",
+        recordBtnActive: "🛑 Grabando... Di la frase",
+        verifiedText: "Verificado (Mano + Fotos + Voz Humana)",
+        blockedTitle: "Acceso Bloqueado",
+        blockedAttempts: "0 intentos disponibles",
+        blockAlert: "⛔ HAS SIDO BLOQUEADO:\nSuperaste el límite máximo de 5 intentos fallidos.",
+        failAttemptsLeft: " Te quedan ",
+        failAttemptsSuffix: " intento(s).",
+        failNoHand: "Escaneo de mano fallido: No se detectó una mano humana estable.",
+        failTimeImg: "Tiempo agotado en el desafío de imágenes (5s).",
+        failImgWrong: "Selección de imágenes incorrecta.",
+        failNoVoice: "No se escuchó voz durante la grabación de 5 segundos.",
+        failSyntheticVoice: "Detección de voz sintética/robótica sin modulación natural.",
+        catCars: "Autos 🚗",
+        catCats: "Gatos 🐱"
+      },
+      en: {
+        langBtn: "EN",
+        statusDefault: "I'm not a robot",
+        attemptsLabel: "Attempts: ",
+        subtext: "Biometric Anti-Bot",
+        choiceTitle: "Biometric Hand Scan ✋",
+        choicePrompt: "Which camera would you like to use?",
+        camPcBtn: "💻 Use PC WebCam",
+        camMobileBtn: "📱 Scan with Mobile (QR Code)",
+        selectCamPlaceholder: "Select WebCam...",
+        qrTitle: "Scan with Mobile 📱",
+        qrInstruction: "Point your phone at the QR code to continue from your mobile:",
+        qrBackBtn: "Back",
+        camSourceTitle: "PC Camera Active",
+        scanConnecting: "Connecting PC hardware...",
+        scanDetecting: "Hand detected. Hold position...",
+        scanNoHand: "Place your hand in front of the camera...",
+        scanSuccess: "Human hand verified successfully!",
+        imgStepText: "Step 2 / 3",
+        imgTargetTitle: "Select all ",
+        verifyBtn: "CONTINUE TO VOICE 🎙️",
+        audioChoiceTitle: "Biometric Voice Test 🎙️",
+        audioStepText: "Step 3 / 3",
+        audioChoicePrompt: "Which microphone do you want to use to record your voice?",
+        micPcBtn: "💻 PC / WebCam Microphone",
+        micMobileBtn: "📱 Mobile Microphone (Via QR)",
+        voiceTitle: "Voice Recording & Analysis 🎙️",
+        voiceInstruction: 'Press record and say: <strong>"I am not a robot"</strong>',
+        recordBtnDefault: "🔴 Press to Record",
+        recordBtnActive: "🛑 Recording... Say the phrase",
+        verifiedText: "Verified (Hand + Photos + Human Voice)",
+        blockedTitle: "Access Blocked",
+        blockedAttempts: "0 attempts remaining",
+        blockAlert: "⛔ YOU HAVE BEEN BLOCKED:\nMaximum limit of 5 failed attempts exceeded.",
+        failAttemptsLeft: " You have ",
+        failAttemptsSuffix: " attempt(s) left.",
+        failNoHand: "Hand scan failed: No stable human hand detected.",
+        failTimeImg: "Time expired on image challenge (5s).",
+        failImgWrong: "Incorrect image selection.",
+        failNoVoice: "No voice detected during the 5 second recording.",
+        failSyntheticVoice: "Synthetic/robotic voice detected without natural modulation.",
+        catCars: "Cars 🚗",
+        catCats: "Cats 🐱"
+      }
+    };
+
+    function toggleLanguage() {
+      currentLang = currentLang === 'es' ? 'en' : 'es';
+      updateUIStrings();
+    }
+
+    function updateUIStrings() {
+      const t = translations[currentLang];
+
+      document.getElementById('ezLangLabel').innerText = t.langBtn;
+      if (!ezVerified && !isBlocked) {
+        document.getElementById('ezStatusText').innerText = t.statusDefault;
+      }
+      document.getElementById('ezAttemptsText').innerText = `${t.attemptsLabel}${remainingAttempts}/5`;
+      document.getElementById('ezSubtext').innerText = t.subtext;
+
+      document.getElementById('ezChoiceTitle').innerText = t.choiceTitle;
+      document.getElementById('ezChoicePrompt').innerText = t.choicePrompt;
+      document.getElementById('ezCamPcBtn').innerText = t.camPcBtn;
+      document.getElementById('ezCamMobileBtn').innerText = t.camMobileBtn;
+
+      document.getElementById('ezQrTitle').innerText = t.qrTitle;
+      document.getElementById('ezQrInstruction').innerText = t.qrInstruction;
+      document.getElementById('ezQrBackBtn').innerText = t.qrBackBtn;
+
+      document.getElementById('ezCameraSourceTitle').innerText = t.camSourceTitle;
+      document.getElementById('ezImgStepText').innerText = t.imgStepText;
+      document.getElementById('ezVerifyBtn').innerText = t.verifyBtn;
+
+      document.getElementById('ezAudioChoiceTitle').innerText = t.audioChoiceTitle;
+      document.getElementById('ezAudioStepText').innerText = t.audioStepText;
+      document.getElementById('ezAudioChoicePrompt').innerText = t.audioChoicePrompt;
+      document.getElementById('ezMicPcBtn').innerText = t.micPcBtn;
+      document.getElementById('ezMicMobileBtn').innerText = t.micMobileBtn;
+
+      document.getElementById('ezVoiceTitle').innerText = t.voiceTitle;
+      document.getElementById('ezVoiceInstruction').innerHTML = t.voiceInstruction;
+      
+      if (!isRecording) {
+        document.getElementById('ezRecordBtn').innerText = t.recordBtnDefault;
+      } else {
+        document.getElementById('ezRecordBtn').innerText = t.recordBtnActive;
+      }
+
+      if (currentCategory) {
+        const catName = currentCategory.key === 'cars' ? t.catCars : t.catCats;
+        document.getElementById('ezTargetTitle').innerText = t.imgTargetTitle + catName;
+      }
+    }
+
     let ezVerified = false;
     let isBlocked = false;
     let remainingAttempts = 5;
@@ -594,21 +771,25 @@
     });
 
     // CONTROL DE INTENTOS Y BLOQUEO
-    function registerFailure(errorMessage) {
+    function registerFailure(errorMessageKey) {
+      const t = translations[currentLang];
+      const errorMsg = t[errorMessageKey] || errorMessageKey;
+
       remainingAttempts--;
       updateAttemptsUI();
 
       if (remainingAttempts <= 0) {
         blockCaptcha();
       } else {
-        alert(`❌ ${errorMessage}\n\n⚠️ Te quedan ${remainingAttempts} intento(s).`);
+        alert(`❌ ${errorMsg}\n\n⚠️${t.failAttemptsLeft}${remainingAttempts}${t.failAttemptsSuffix}`);
         resetAllModals();
       }
     }
 
     function updateAttemptsUI() {
+      const t = translations[currentLang];
       const attemptsElem = document.getElementById('ezAttemptsText');
-      attemptsElem.innerText = `Intentos: ${remainingAttempts}/5`;
+      attemptsElem.innerText = `${t.attemptsLabel}${remainingAttempts}/5`;
       if (remainingAttempts <= 2) {
         attemptsElem.style.color = '#ef4444';
       }
@@ -618,6 +799,7 @@
       isBlocked = true;
       resetAllModals();
 
+      const t = translations[currentLang];
       const box = document.getElementById('ezCaptchaBox');
       const checkbox = document.getElementById('ezCheckbox');
       const statusText = document.getElementById('ezStatusText');
@@ -629,23 +811,21 @@
       checkbox.style.background = '#ef4444';
       checkbox.innerHTML = '<span style="color:white; font-weight:bold; font-size:1rem;">✕</span>';
 
-      statusText.innerText = 'Acceso Bloqueado';
+      statusText.innerText = t.blockedTitle;
       statusText.style.color = '#b91c1c';
-      attemptsText.innerText = '0 intentos disponibles';
+      attemptsText.innerText = t.blockedAttempts;
       attemptsText.style.color = '#b91c1c';
 
-      alert('⛔ HAS SIDO BLOQUEADO:\nSuperaste el límite máximo de 5 intentos fallidos.');
+      alert(t.blockAlert);
     }
 
     function showQrCode() {
       document.getElementById('ezChoiceModal').classList.remove('active');
-      document.getElementById('ezQrInstruction').innerText = "Apunta tu teléfono al QR para realizar el escaneo biométrico:";
       document.getElementById('ezQrModal').classList.add('active');
     }
 
     function showAudioQrCode() {
       document.getElementById('ezAudioChoiceModal').classList.remove('active');
-      document.getElementById('ezQrInstruction').innerText = "Apunta tu teléfono al QR para enviar el audio desde tu celular:";
       document.getElementById('ezQrModal').classList.add('active');
     }
 
@@ -685,7 +865,7 @@
           videoDevices.forEach((dev, idx) => {
             const opt = document.createElement('option');
             opt.value = dev.deviceId;
-            opt.innerText = dev.label || `Cámara PC #${idx + 1}`;
+            opt.innerText = dev.label || `Camera #${idx + 1}`;
             if (dev.deviceId === selectedDeviceId) opt.selected = true;
             selector.appendChild(opt);
           });
@@ -703,16 +883,15 @@
       document.getElementById('ezChoiceModal').classList.remove('active');
       document.getElementById('ezHandScanModal').classList.add('active');
 
+      const t = translations[currentLang];
       const statusText = document.getElementById('ezScanStatus');
-      const titleText = document.getElementById('ezCameraSourceTitle');
 
       const videoConstraints = selectedDeviceId
         ? { deviceId: { exact: selectedDeviceId }, width: { ideal: 1280 }, height: { ideal: 720 } }
         : { width: { ideal: 1280 }, height: { ideal: 720 } };
 
       try {
-        titleText.innerText = "Cámara de la PC Activa";
-        statusText.innerText = "Conectando hardware de la PC...";
+        statusText.innerText = t.scanConnecting;
 
         cameraStream = await navigator.mediaDevices.getUserMedia({ video: videoConstraints, audio: false });
         const video = document.getElementById('ezVideo');
@@ -727,7 +906,7 @@
         };
 
       } catch (err) {
-        alert("⚠️ No se pudo activar la WebCam local de la PC:\n" + err.message);
+        alert("⚠️ WebCam Error:\n" + err.message);
         resetAllModals();
       }
     }
@@ -765,6 +944,7 @@
       const skinRatio = skinPixels / (canvas.width * canvas.height);
       const avgDiff = totalPixelDiff / (canvas.width * canvas.height);
 
+      const t = translations[currentLang];
       const statusText = document.getElementById('ezScanStatus');
 
       if (skinRatio > 0.10) {
@@ -775,12 +955,12 @@
         }
 
         scanProgress += 2;
-        statusText.innerText = "Mano detectada. Mantén la posición...";
+        statusText.innerText = t.scanDetecting;
         statusText.style.color = "#0077b5";
       } else {
         skinPixelsDetected = false;
         if (scanProgress > 0) scanProgress -= 3;
-        statusText.innerText = "Coloca tu mano frente a la cámara...";
+        statusText.innerText = t.scanNoHand;
         statusText.style.color = "#ef4444";
       }
 
@@ -795,14 +975,14 @@
         stopCamera();
 
         if (skinPixelsDetected && humanMicroMovementDetected) {
-          statusText.innerText = "¡Mano humana verificada correctamente!";
+          statusText.innerText = t.scanSuccess;
           statusText.style.color = "#10b981";
           setTimeout(() => {
             document.getElementById('ezHandScanModal').classList.remove('active');
             openImageModal();
           }, 800);
         } else {
-          registerFailure("Escaneo de mano fallido: No se detectó una mano humana estable.");
+          registerFailure("failNoHand");
         }
       }
     }
@@ -829,7 +1009,7 @@
 
     const categories = [
       {
-        name: "Autos 🚗",
+        key: "cars",
         images: [
           "https://images.unsplash.com/photo-1541348263662-e082662d8298?auto=format&fit=crop&w=200&q=80",
           "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=200&q=80",
@@ -837,7 +1017,7 @@
         ]
       },
       {
-        name: "Gatos 🐱",
+        key: "cats",
         images: [
           "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=200&q=80",
           "https://images.unsplash.com/photo-1573865526739-10659fec78a5?auto=format&fit=crop&w=200&q=80",
@@ -867,7 +1047,9 @@
       gridContainer.innerHTML = '';
 
       currentCategory = categories[Math.floor(Math.random() * categories.length)];
-      document.getElementById('ezTargetTitle').innerText = `Selecciona todos los ${currentCategory.name}`;
+      const t = translations[currentLang];
+      const catName = currentCategory.key === 'cars' ? t.catCars : t.catCats;
+      document.getElementById('ezTargetTitle').innerText = t.imgTargetTitle + catName;
 
       let targetsPool = [...currentCategory.images].sort(() => Math.random() - 0.5);
       let fillersPool = [...fillerImages].sort(() => Math.random() - 0.5);
@@ -910,7 +1092,7 @@
 
         if (imageTimeLeft <= 0) {
           clearInterval(imageTimerInterval);
-          registerFailure("Tiempo agotado en el desafío de imágenes (5s).");
+          registerFailure("failTimeImg");
         }
       }, 1000);
     }
@@ -923,7 +1105,7 @@
       const hasMissed = correctIndices.some(id => !selectedCells.includes(id));
 
       if (hasIncorrect || hasMissed) {
-        registerFailure("Selección de imágenes incorrecta.");
+        registerFailure("failImgWrong");
         return;
       }
 
@@ -954,7 +1136,7 @@
         updateAudioBars();
 
       } catch (err) {
-        alert("⚠️ Ocurrió un error al acceder al micrófono o WebCam:\n" + err.message);
+        alert("⚠️ Mic/Camera Error:\n" + err.message);
         resetAllModals();
       }
     }
@@ -990,13 +1172,14 @@
     function toggleVoiceRecording() {
       const btn = document.getElementById('ezRecordBtn');
       const fill = document.getElementById('ezVoiceProgressFill');
+      const t = translations[currentLang];
 
       if (!isRecording) {
         isRecording = true;
         voiceTimeLeft = 5;
         pitchHistory = [];
         btn.classList.add('recording');
-        btn.innerText = "🛑 Grabando... Di la frase";
+        btn.innerText = t.recordBtnActive;
         document.getElementById('ezVoiceTimerDisplay').innerText = voiceTimeLeft;
 
         voiceInterval = setInterval(() => {
@@ -1015,7 +1198,7 @@
 
     function finishCaptcha() {
       if (pitchHistory.length < 3) {
-        registerFailure("No se escuchó voz durante la grabación de 5 segundos.");
+        registerFailure("failNoVoice");
         return;
       }
 
@@ -1023,13 +1206,14 @@
       const variance = pitchHistory.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / pitchHistory.length;
 
       if (variance < 0.25) {
-        registerFailure("Detección de voz sintética/robótica sin modulación natural.");
+        registerFailure("failSyntheticVoice");
         return;
       }
 
       ezVerified = true;
       resetAllModals();
 
+      const t = translations[currentLang];
       const box = document.getElementById('ezCaptchaBox');
       const checkbox = document.getElementById('ezCheckbox');
       const checkmark = document.getElementById('ezCheckmark');
@@ -1040,7 +1224,7 @@
       checkbox.style.borderColor = '#10b981';
       checkbox.style.background = '#10b981';
       checkmark.style.display = 'block';
-      statusText.innerText = 'Verificado por ezCAPTCHA';
+      statusText.innerText = t.verifiedText;
       statusText.style.color = '#065f46';
     }
   </script>
