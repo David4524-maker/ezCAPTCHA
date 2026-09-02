@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ezCAPTCHA - Antibots</title>
+  <style>
+    :root {
+      --ez-primary: #009ee3;
+      --ez-primary-dark: #0077b5;
+      --ez-success: #10b981;
+      --ez-danger: #ef4444;
+      --ez-bg: #0f172a;
+      --ez-border: #cbd5e1;
+      --ez-text: #1e293b;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+
+    body {
+      background: var(--ez-bg);
+      color: var(--ez-text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .ez-container {
+      background: white;
+      padding: 24px;
+      border-radius: 16px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+      width: 100%;
+      max-width: 380px;
+      border: 1px solid #334155;
+    }
+
+    .ez-captcha-box {
+      width: 100%;
+      background: #f8fafc;
+      border: 2px solid var(--ez-border);
+      border-radius: 12px;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      user-select: none;
+      transition: all 0.25s ease;
+    }
+
+    .ez-checkbox-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+    }
+
+    .ez-checkbox {
+      width: 28px;
+      height: 28px;
+      border: 2.5px solid #94a3b8;
+      border-radius: 6px;
+      background: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+
+    .ez-spinner {
+      width: 18px;
+      height: 18px;
+      border: 3px solid #e2e8f0;
+      border-top-color: var(--ez-primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      display: none;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .ez-checkmark {
+      display: none;
+      color: white;
+      font-weight: bold;
+      font-size: 1.1rem;
+    }
+
+    .ez-text {
+      font-size: 0.92rem;
+      font-weight: 600;
+      color: #334155;
+    }
+
+    .ez-branding {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+    }
+
+    .ez-logo-container {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .ez-logo-icon {
+      width: 20px;
+      height: 24px;
+    }
+
+    .ez-logo {
+      font-weight: 900;
+      font-size: 0.95rem;
+      color: #0f172a;
+    }
+
+    .ez-subtext {
+      font-size: 0.65rem;
+      color: #94a3b8;
+      font-weight: 600;
+    }
+
+    .ez-modal-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(15, 23, 42, 0.8);
+      backdrop-filter: blur(6px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+      z-index: 999;
+    }
+
+    .ez-modal-backdrop.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .ez-modal {
+      background: white;
+      width: 360px;
+      border-radius: 16px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4);
+      overflow: hidden;
+      transform: scale(0.9);
+      transition: transform 0.25s ease;
+      border: 1px solid #e2e8f0;
+    }
+
+    .ez-modal-backdrop.active .ez-modal {
+      transform: scale(1);
+    }
+
+    .ez-modal-header {
+      background: var(--ez-primary);
+      color: white;
+      padding: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .ez-choice-body {
+      padding: 20px;
+      text-align: center;
+    }
+
+    .ez-choice-btn {
+      width: 100%;
+      padding: 14px;
+      margin: 8px 0;
+      background: #f1f5f9;
+      border: 2px solid #cbd5e1;
+      border-radius: 10px;
+      font-weight: 700;
+      color: #1e293b;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: all 0.2s ease;
+    }
+
+    .ez-choice-btn:hover {
+      background: #e2e8f0;
+      border-color: var(--ez-primary);
+    }
+
+    .ez-camera-select {
+      width: 100%;
+      padding: 8px;
+      margin-top: 10px;
+      border-radius: 6px;
+      border: 1px solid #cbd5e1;
+      font-size: 0.82rem;
+      background: #fff;
+    }
+
+    .ez-camera-view {
+      position: relative;
+      width: 100%;
+      height: 280px;
+      background: #000;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    video#ezVideo {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1);
+    }
+
+    .ez-hand-overlay {
+      position: absolute;
+      width: 160px;
+      height: 200px;
+      border: 2px dashed rgba(0, 158, 227, 0.8);
+      border-radius: 50px 50px 20px 20px;
+      pointer-events: none;
+      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .ez-scan-line {
+      position: absolute;
+      width: 100%;
+      height: 4px;
+      background: #009ee3;
+      box-shadow: 0 0 12px #009ee3;
+      top: 0;
+      animation: scan 2s infinite ease-in-out;
+    }
+
+    @keyframes scan {
+      0% { top: 0%; }
+      50% { top: 100%; }
+      100% { top: 0%; }
+    }
+
+    .ez-scan-status {
+      padding: 12px;
+      text-align: center;
+      background: #f8fafc;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #475569;
+    }
+
+    .ez-progress-bar {
+      height: 6px;
+      background: #e2e8f0;
+      width: 100%;
+      position: relative;
+    }
+
+    .ez-progress-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--ez-primary);
+      transition: width 0.1s linear;
+    }
+
+    .ez-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      padding: 12px;
+      background: #f8fafc;
+    }
+
+    .ez-cell {
+      aspect-ratio: 1;
+      background: #e2e8f0;
+      border-radius: 8px;
+      overflow: hidden;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .ez-cell img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      pointer-events: none;
+    }
+
+    .ez-cell.selected {
+      outline: 3.5px solid var(--ez-primary);
+      outline-offset: -3.5px;
+    }
+
+    .ez-cell.selected::after {
+      content: "✓";
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      width: 22px;
+      height: 22px;
+      background: var(--ez-primary);
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 900;
+    }
+
+    .ez-modal-footer {
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    .ez-btn-verify {
+      background: var(--ez-primary);
+      color: white;
+      border: none;
+      padding: 9px 20px;
+      border-radius: 8px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .ez-qr-box {
+      padding: 20px;
+      text-align: center;
+    }
+
+    .ez-qr-img {
+      width: 180px;
+      height: 180px;
+      margin: 10px auto;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="ez-container">
+    <div class="ez-captcha-box" id="ezCaptchaBox">
+      <div class="ez-checkbox-wrapper" id="ezTriggerArea">
+        <div class="ez-checkbox" id="ezCheckbox">
+          <div class="ez-spinner" id="ezSpinner"></div>
+          <span class="ez-checkmark" id="ezCheckmark">✓</span>
+        </div>
+        <span class="ez-text" id="ezStatusText">No soy un robot</span>
+      </div>
+      
+      <div class="ez-branding">
+        <div class="ez-logo-container">
+          <svg class="ez-logo-icon" viewBox="0 0 100 120">
+            <polygon points="10,10 50,45 50,112 10,77" fill="#009ee3" stroke="#009ee3" stroke-width="6" stroke-linejoin="round"/>
+            <polygon points="50,45 90,10 90,77 50,112" fill="#c3c3c3" stroke="#009ee3" stroke-width="6" stroke-linejoin="round"/>
+          </svg>
+          <span class="ez-logo">ezCAPTCHA</span>
+        </div>
+        <span class="ez-subtext">Biométrico + IA</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- PASO 1: SELECCIÓN DE DISPOSITIVO -->
+  <div class="ez-modal-backdrop" id="ezChoiceModal">
+    <div class="ez-modal">
+      <div class="ez-modal-header">
+        <h3>Escaneo Biométrico de Mano ✋</h3>
+      </div>
+      <div class="ez-choice-body">
+        <p style="font-size: 0.9rem; margin-bottom: 15px; color: #64748b;">¿Qué cámara deseas utilizar para la prueba biométrica?</p>
+        <button class="ez-choice-btn" onclick="startCamera('pc')">
+          💻 Usar WebCam de la PC
+        </button>
+        <button class="ez-choice-btn" onclick="showQrCode()">
+          📱 Escanear con Celular (Código QR)
+        </button>
+
+        <select id="ezCamDeviceSelector" class="ez-camera-select" onchange="switchCameraDevice(this.value)" style="display:none;">
+          <option value="">Seleccionar WebCam...</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- PASO 1B: CÓDIGO QR -->
+  <div class="ez-modal-backdrop" id="ezQrModal">
+    <div class="ez-modal">
+      <div class="ez-modal-header">
+        <h3>Escanear con Celular 📱</h3>
+      </div>
+      <div class="ez-qr-box">
+        <p style="font-size: 0.85rem; color: #475569;">Apunta tu teléfono al QR para continuar la prueba desde tu móvil:</p>
+        <img class="ez-qr-img" src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://ezcaptcha.local/scan-hand" alt="QR Code">
+        <button class="ez-choice-btn" onclick="closeQrModal()" style="margin-top: 10px;">Volver</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PASO 2: ESCÁNER DE MANO EN VIVO -->
+  <div class="ez-modal-backdrop" id="ezHandScanModal">
+    <div class="ez-modal">
+      <div class="ez-modal-header">
+        <h3 id="ezCameraSourceTitle">Cámara PC Activa</h3>
+        <span style="font-size: 0.75rem; background: #0077b5; padding: 3px 8px; border-radius: 4px;">Hardware Local</span>
+      </div>
+      <div class="ez-camera-view">
+        <video id="ezVideo" autoplay playsinline muted></video>
+        <div class="ez-hand-overlay">
+          <div class="ez-scan-line"></div>
+        </div>
+      </div>
+      <div class="ez-progress-bar">
+        <div class="ez-progress-fill" id="ezProgressFill"></div>
+      </div>
+      <div class="ez-scan-status" id="ezScanStatus">
+        Iniciando cámara de la PC...
+      </div>
+    </div>
+  </div>
+
+  <!-- PASO 3: DESAFÍO DE IMÁGENES ÚNICAS -->
+  <div class="ez-modal-backdrop" id="ezImageModal">
+    <div class="ez-modal">
+      <div class="ez-modal-header">
+        <div>
+          <h4 style="font-size: 0.75rem; opacity: 0.9;">Paso 2 / 2</h4>
+          <h3 id="ezTargetTitle">Cargando desafío...</h3>
+        </div>
+      </div>
+      <div class="ez-grid" id="ezGrid"></div>
+      <div class="ez-modal-footer">
+        <button style="background:none; border:none; cursor:pointer;" onclick="generateChallenge()">🔄</button>
+        <button class="ez-btn-verify" id="ezVerifyBtn">VERIFICAR</button>
+      </div>
+    </div>
+  </div>
+
+  <canvas id="ezAnalysisCanvas" style="display:none;" width="160" height="120"></canvas>
+
+  <script>
+    let ezVerified = false;
+    let cameraStream = null;
+    let scanProgress = 0;
+    let scanInterval = null;
+    let previousFrameData = null;
+    let humanMicroMovementDetected = false;
+    let skinPixelsDetected = false;
+    let selectedDeviceId = null;
+
+    document.getElementById('ezTriggerArea').addEventListener('click', function(e) {
+      if (ezVerified || !e.isTrusted) return;
+      document.getElementById('ezChoiceModal').classList.add('active');
+      detectPCCameras();
+    });
+
+    function showQrCode() {
+      document.getElementById('ezChoiceModal').classList.remove('active');
+      document.getElementById('ezQrModal').classList.add('active');
+    }
+
+    function closeQrModal() {
+      document.getElementById('ezQrModal').classList.remove('active');
+      document.getElementById('ezChoiceModal').classList.add('active');
+    }
+
+    async function detectPCCameras() {
+      try {
+        const tempStream = await navigator.mediaDevices.getUserMedia({ video: true });
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        tempStream.getTracks().forEach(track => track.stop());
+
+        const videoDevices = devices.filter(d => d.kind === 'videoinput');
+        const selector = document.getElementById('ezCamDeviceSelector');
+        selector.innerHTML = '';
+
+        let pcWebcam = videoDevices.find(d => {
+          const label = d.label.toLowerCase();
+          return !label.includes('phone') && 
+                 !label.includes('celular') && 
+                 !label.includes('droidcam') && 
+                 !label.includes('iriun') && 
+                 !label.includes('virtual') &&
+                 !label.includes('continuity');
+        });
+
+        if (pcWebcam) {
+          selectedDeviceId = pcWebcam.deviceId;
+        } else if (videoDevices.length > 0) {
+          selectedDeviceId = videoDevices[0].deviceId;
+        }
+
+        if (videoDevices.length > 1) {
+          selector.style.display = 'block';
+          videoDevices.forEach((dev, idx) => {
+            const opt = document.createElement('option');
+            opt.value = dev.deviceId;
+            opt.innerText = dev.label || `Cámara PC #${idx + 1}`;
+            if (dev.deviceId === selectedDeviceId) opt.selected = true;
+            selector.appendChild(opt);
+          });
+        }
+      } catch (e) {
+        console.warn("Error buscando cámaras:", e);
+      }
+    }
+
+    function switchCameraDevice(deviceId) {
+      if (deviceId) selectedDeviceId = deviceId;
+    }
+
+    async function startCamera(sourceType) {
+      document.getElementById('ezChoiceModal').classList.remove('active');
+      document.getElementById('ezHandScanModal').classList.add('active');
+
+      const statusText = document.getElementById('ezScanStatus');
+      const titleText = document.getElementById('ezCameraSourceTitle');
+
+      const videoConstraints = selectedDeviceId
+        ? { deviceId: { exact: selectedDeviceId }, width: { ideal: 1280 }, height: { ideal: 720 } }
+        : { width: { ideal: 1280 }, height: { ideal: 720 } };
+
+      try {
+        titleText.innerText = "Cámara de la PC Activa";
+        statusText.innerText = "Conectando hardware de la PC...";
+
+        cameraStream = await navigator.mediaDevices.getUserMedia({
+          video: videoConstraints,
+          audio: false
+        });
+
+        const video = document.getElementById('ezVideo');
+        video.srcObject = cameraStream;
+
+        video.onloadedmetadata = () => {
+          video.play();
+          scanProgress = 0;
+          scanInterval = setInterval(analyzeHandFrame, 150);
+        };
+
+      } catch (err) {
+        alert("⚠️ No se pudo activar la WebCam local de la PC:\n" + err.message);
+        resetAllModals();
+      }
+    }
+
+    function analyzeHandFrame() {
+      const video = document.getElementById('ezVideo');
+      const canvas = document.getElementById('ezAnalysisCanvas');
+      const ctx = canvas.getContext('2d');
+
+      if (video.readyState !== video.HAVE_ENOUGH_DATA) return;
+
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = frame.data;
+
+      let skinPixels = 0;
+      let totalPixelDiff = 0;
+
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i+1];
+        const b = data[i+2];
+
+        if (r > 60 && g > 40 && b > 20 && r > g && r > b && (Math.max(r, g, b) - Math.min(r, g, b) > 15)) {
+          skinPixels++;
+        }
+
+        if (previousFrameData) {
+          totalPixelDiff += Math.abs(r - previousFrameData[i]);
+        }
+      }
+
+      previousFrameData = data;
+
+      const skinRatio = skinPixels / (canvas.width * canvas.height);
+      const avgDiff = totalPixelDiff / (canvas.width * canvas.height);
+
+      if (skinRatio > 0.15) skinPixelsDetected = true;
+      if (avgDiff > 0.8 && avgDiff < 15.0) humanMicroMovementDetected = true;
+
+      const statusText = document.getElementById('ezScanStatus');
+
+      if (skinPixelsDetected) {
+        scanProgress += 10;
+        statusText.innerText = "Mano detectada en la PC. Analizando biometría...";
+        statusText.style.color = "#0077b5";
+      } else {
+        statusText.innerText = "Coloca tu mano frente a la WebCam de la PC...";
+        statusText.style.color = "#ef4444";
+      }
+
+      document.getElementById('ezProgressFill').style.width = scanProgress + "%";
+
+      if (scanProgress >= 100) {
+        clearInterval(scanInterval);
+        stopCamera();
+
+        if (skinPixelsDetected && humanMicroMovementDetected) {
+          statusText.innerText = "¡Mano humana verificada correctamente!";
+          statusText.style.color = "#10b981";
+          setTimeout(() => {
+            document.getElementById('ezHandScanModal').classList.remove('active');
+            openImageModal();
+          }, 800);
+        } else {
+          alert("Escaneo fallido: No se detectó un patrón biométrico válido en la PC.");
+          resetAllModals();
+        }
+      }
+    }
+
+    function stopCamera() {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+      }
+    }
+
+    function resetAllModals() {
+      stopCamera();
+      clearInterval(scanInterval);
+      document.querySelectorAll('.ez-modal-backdrop').forEach(m => m.classList.remove('active'));
+    }
+
+    // --- BANCO DE IMÁGENES 100% ÚNICAS (SIN REPETICIONES) ---
+    let selectedCells = [];
+    let currentCategory = null;
+    let gridData = [];
+
+    const categories = [
+      {
+        name: "Autos 🚗",
+        images: [
+          "https://images.unsplash.com/photo-1541348263662-e082662d8298?auto=format&fit=crop&w=200&q=80",
+          "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=200&q=80",
+          "https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?auto=format&fit=crop&w=200&q=80",
+          "https://images.unsplash.com/photo-1580273916550-e323be2ae537?auto=format&fit=crop&w=200&q=80",
+          "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=200&q=80",
+          "https://images.unsplash.com/photo-1525609004556-c46c7d6cf023?auto=format&fit=crop&w=200&q=80",
+          "https://images.unsplash.com/photo-1511919884226-fd3cad34687c?auto=format&fit=crop&w=200&q=80",
+          "https://images.unsplash.com/photo-1542282088-72c9c27ed0cd?auto=format&fit=crop&w=200&q=80",
+          "https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&w=200&q=80"
+        ]
+      },
+      {
+        name: "Gatos 🐱",
+        images: [
+          "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=200&q=80",
+          "https://images.unsplash.com/photo-1573865526739-10659fec78a5?auto=format&fit=crop&w=200&q=80",
+          "https://images.unsplash.com/photo-1533738363-b7f9aef128ce?auto=format&fit=crop&w=200&q=80",
+          "https://images.unsplash.com/photo-1495360010541-f48722b34f7d?auto=format&fit=crop&w=200&q=80",
+          "https://images.unsplash.com/photo-1518791841217-8f162f1e1131?auto=format&fit=crop&w=200&q=80",
+          "https://images.unsplash.com/photo-1543852786-1cf6624b9987?auto=format&fit=crop&w=200&q=80",
+          "https://images.unsplash.com/photo-1561948955-570b270e7c36?auto=format&fit=crop&w=200&q=80",
+          "https://images.unsplash.com/photo-1513360371669-4adf3dd7dff8?auto=format&fit=crop&w=200&q=80",
+          "https://images.unsplash.com/photo-1574158622682-e40e69881006?auto=format&fit=crop&w=200&q=80"
+        ]
+      }
+    ];
+
+    const fillerImages = [
+      "https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=200&q=80",
+      "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=200&q=80",
+      "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=200&q=80",
+      "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=200&q=80",
+      "https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=200&q=80",
+      "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=200&q=80",
+      "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=200&q=80",
+      "https://images.unsplash.com/photo-1511497584788-8767611136f6?auto=format&fit=crop&w=200&q=80",
+      "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=200&q=80"
+    ];
+
+    function openImageModal() {
+      generateChallenge();
+      document.getElementById('ezImageModal').classList.add('active');
+    }
+
+    function generateChallenge() {
+      selectedCells = [];
+      gridData = [];
+      const gridContainer = document.getElementById('ezGrid');
+      gridContainer.innerHTML = '';
+
+      currentCategory = categories[Math.floor(Math.random() * categories.length)];
+      document.getElementById('ezTargetTitle').innerText = `Selecciona todos los ${currentCategory.name}`;
+
+      // Clonar y desordenar arrays para extraer elementos únicos sin repetir
+      let targetsPool = [...currentCategory.images].sort(() => Math.random() - 0.5);
+      let fillersPool = [...fillerImages].sort(() => Math.random() - 0.5);
+
+      for (let i = 0; i < 9; i++) {
+        const isTarget = (Math.random() > 0.5 && targetsPool.length > 0) || fillersPool.length === 0;
+        const imgUrl = isTarget ? targetsPool.pop() : fillersPool.pop();
+        
+        gridData.push({ id: i, isTarget });
+
+        const cell = document.createElement('div');
+        cell.className = 'ez-cell';
+        const img = document.createElement('img');
+        img.src = imgUrl;
+        cell.appendChild(img);
+
+        cell.onclick = () => {
+          if (selectedCells.includes(i)) {
+            selectedCells = selectedCells.filter(id => id !== i);
+            cell.classList.remove('selected');
+          } else {
+            selectedCells.push(i);
+            cell.classList.add('selected');
+          }
+        };
+        gridContainer.appendChild(cell);
+      }
+    }
+
+    document.getElementById('ezVerifyBtn').addEventListener('click', function() {
+      ezVerified = true;
+      document.getElementById('ezImageModal').classList.remove('active');
+
+      const box = document.getElementById('ezCaptchaBox');
+      const checkbox = document.getElementById('ezCheckbox');
+      const checkmark = document.getElementById('ezCheckmark');
+      const statusText = document.getElementById('ezStatusText');
+
+      box.style.borderColor = '#10b981';
+      box.style.background = '#f0fdf4';
+      checkbox.style.borderColor = '#10b981';
+      checkbox.style.background = '#10b981';
+      checkmark.style.display = 'block';
+      statusText.innerText = 'Verificado por ezCAPTCHA';
+      statusText.style.color = '#065f46';
+    });
+  </script>
+</body>
+</html>
