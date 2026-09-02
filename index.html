@@ -82,10 +82,21 @@
       font-size: 1.1rem;
     }
 
+    .ez-text-container {
+      display: flex;
+      flex-direction: column;
+    }
+
     .ez-text {
       font-size: 0.92rem;
       font-weight: 600;
       color: #334155;
+    }
+
+    .ez-attempts-text {
+      font-size: 0.72rem;
+      color: #64748b;
+      font-weight: 600;
     }
 
     .ez-branding {
@@ -405,7 +416,10 @@
         <div class="ez-checkbox" id="ezCheckbox">
           <span class="ez-checkmark" id="ezCheckmark">✓</span>
         </div>
-        <span class="ez-text" id="ezStatusText">No soy un robot</span>
+        <div class="ez-text-container">
+          <span class="ez-text" id="ezStatusText">No soy un robot</span>
+          <span class="ez-attempts-text" id="ezAttemptsText">Intentos: 5/5</span>
+        </div>
       </div>
       
       <div class="ez-branding">
@@ -416,7 +430,7 @@
           </svg>
           <span class="ez-logo">ezCAPTCHA</span>
         </div>
-        <span class="ez-subtext">Biométrico + Anti-TTS</span>
+        <span class="ez-subtext">Biométrico Anti-Bot</span>
       </div>
     </div>
   </div>
@@ -516,7 +530,7 @@
     </div>
   </div>
 
-  <!-- PASO 5: GRABACIÓN Y ANÁLISIS DE VOZ CON DETECTOR ROBÓTICO -->
+  <!-- PASO 5: GRABACIÓN Y ANÁLISIS DE VOZ -->
   <div class="ez-modal-backdrop" id="ezVoiceModal">
     <div class="ez-modal">
       <div class="ez-modal-header">
@@ -549,6 +563,9 @@
 
   <script>
     let ezVerified = false;
+    let isBlocked = false;
+    let remainingAttempts = 5;
+
     let cameraStream = null;
     let audioStream = null;
     let scanProgress = 0;
@@ -558,14 +575,12 @@
     let skinPixelsDetected = false;
     let selectedDeviceId = null;
 
-    // Temporizadores de 5 segundos
     let imageTimerInterval = null;
     let imageTimeLeft = 5;
 
     let voiceInterval = null;
     let voiceTimeLeft = 5;
 
-    // Audio & Anti-Bot Detection Vars
     let audioContext = null;
     let analyser = null;
     let microphone = null;
@@ -573,10 +588,54 @@
     let pitchHistory = [];
 
     document.getElementById('ezTriggerArea').addEventListener('click', function(e) {
-      if (ezVerified || !e.isTrusted) return;
+      if (ezVerified || isBlocked || !e.isTrusted) return;
       document.getElementById('ezChoiceModal').classList.add('active');
       detectPCCameras();
     });
+
+    // CONTROL DE INTENTOS Y BLOQUEO
+    function registerFailure(errorMessage) {
+      remainingAttempts--;
+      updateAttemptsUI();
+
+      if (remainingAttempts <= 0) {
+        blockCaptcha();
+      } else {
+        alert(`❌ ${errorMessage}\n\n⚠️ Te quedan ${remainingAttempts} intento(s).`);
+        resetAllModals();
+      }
+    }
+
+    function updateAttemptsUI() {
+      const attemptsElem = document.getElementById('ezAttemptsText');
+      attemptsElem.innerText = `Intentos: ${remainingAttempts}/5`;
+      if (remainingAttempts <= 2) {
+        attemptsElem.style.color = '#ef4444';
+      }
+    }
+
+    function blockCaptcha() {
+      isBlocked = true;
+      resetAllModals();
+
+      const box = document.getElementById('ezCaptchaBox');
+      const checkbox = document.getElementById('ezCheckbox');
+      const statusText = document.getElementById('ezStatusText');
+      const attemptsText = document.getElementById('ezAttemptsText');
+
+      box.style.borderColor = '#ef4444';
+      box.style.background = '#fef2f2';
+      checkbox.style.borderColor = '#ef4444';
+      checkbox.style.background = '#ef4444';
+      checkbox.innerHTML = '<span style="color:white; font-weight:bold; font-size:1rem;">✕</span>';
+
+      statusText.innerText = 'Acceso Bloqueado';
+      statusText.style.color = '#b91c1c';
+      attemptsText.innerText = '0 intentos disponibles';
+      attemptsText.style.color = '#b91c1c';
+
+      alert('⛔ HAS SIDO BLOQUEADO:\nSuperaste el límite máximo de 5 intentos fallidos.');
+    }
 
     function showQrCode() {
       document.getElementById('ezChoiceModal').classList.remove('active');
@@ -664,7 +723,6 @@
           scanProgress = 0;
           skinPixelsDetected = false;
           humanMicroMovementDetected = false;
-          // Temporizador de 5s: 100ms * 50 ticks = 5000ms
           scanInterval = setInterval(analyzeHandFrame, 100);
         };
 
@@ -709,7 +767,6 @@
 
       const statusText = document.getElementById('ezScanStatus');
 
-      // Escaneo estricto de 5 segundos
       if (skinRatio > 0.10) {
         skinPixelsDetected = true;
 
@@ -717,7 +774,7 @@
           humanMicroMovementDetected = true;
         }
 
-        scanProgress += 2; // Avanza 2% cada 100ms (5 segundos en total)
+        scanProgress += 2;
         statusText.innerText = "Mano detectada. Mantén la posición...";
         statusText.style.color = "#0077b5";
       } else {
@@ -729,7 +786,7 @@
 
       const clampedProgress = Math.max(0, Math.min(100, scanProgress));
       document.getElementById('ezProgressFill').style.width = clampedProgress + "%";
-      
+
       const secondsLeft = Math.ceil((100 - clampedProgress) / 20);
       document.getElementById('ezHandTimer').innerText = secondsLeft;
 
@@ -745,8 +802,7 @@
             openImageModal();
           }, 800);
         } else {
-          alert("❌ Escaneo fallido: No se mantuvo una mano humana válida durante los 5 segundos.");
-          resetAllModals();
+          registerFailure("Escaneo de mano fallido: No se detectó una mano humana estable.");
         }
       }
     }
@@ -767,7 +823,6 @@
       document.querySelectorAll('.ez-modal-backdrop').forEach(m => m.classList.remove('active'));
     }
 
-    // --- BANCO DE IMÁGENES ÚNICAS ---
     let selectedCells = [];
     let currentCategory = null;
     let gridData = [];
@@ -820,7 +875,7 @@
       for (let i = 0; i < 9; i++) {
         const isTarget = (Math.random() > 0.5 && targetsPool.length > 0) || fillersPool.length === 0;
         const imgUrl = isTarget ? targetsPool.pop() : fillersPool.pop();
-        
+
         gridData.push({ id: i, isTarget });
 
         const cell = document.createElement('div');
@@ -841,7 +896,6 @@
         gridContainer.appendChild(cell);
       }
 
-      // Inicia temporizador de 5 segundos para imágenes
       startImageTimer();
     }
 
@@ -856,8 +910,7 @@
 
         if (imageTimeLeft <= 0) {
           clearInterval(imageTimerInterval);
-          alert("⏱️ ¡Tiempo agotado (5s)! El desafío de imágenes se ha reiniciado.");
-          generateChallenge();
+          registerFailure("Tiempo agotado en el desafío de imágenes (5s).");
         }
       }, 1000);
     }
@@ -870,8 +923,7 @@
       const hasMissed = correctIndices.some(id => !selectedCells.includes(id));
 
       if (hasIncorrect || hasMissed) {
-        alert("❌ Selección incorrecta. Debes seleccionar ÚNICAMENTE las imágenes indicadas.");
-        generateChallenge();
+        registerFailure("Selección de imágenes incorrecta.");
         return;
       }
 
@@ -879,7 +931,6 @@
       document.getElementById('ezAudioChoiceModal').classList.add('active');
     });
 
-    // --- GRABACIÓN Y DETECCIÓN ANTI-TTS ---
     async function startVoiceRecording(sourceType) {
       document.getElementById('ezAudioChoiceModal').classList.remove('active');
       document.getElementById('ezVoiceModal').classList.add('active');
@@ -893,7 +944,7 @@
         document.getElementById('ezVoiceVideo').srcObject = cameraStream;
 
         audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        
+
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
         analyser = audioContext.createAnalyser();
         microphone = audioContext.createMediaStreamSource(audioStream);
@@ -962,21 +1013,9 @@
       }
     }
 
-    function resetVoiceRecordingState() {
-      isRecording = false;
-      voiceTimeLeft = 5;
-      pitchHistory = [];
-      document.getElementById('ezVoiceProgressFill').style.width = "0%";
-      document.getElementById('ezVoiceTimerDisplay').innerText = "5";
-      const btn = document.getElementById('ezRecordBtn');
-      btn.classList.remove('recording');
-      btn.innerText = "🔴 Presionar para Grabar";
-    }
-
     function finishCaptcha() {
       if (pitchHistory.length < 3) {
-        alert("⚠️ No se escuchó voz durante la grabación de 5 segundos. Inténtalo de nuevo.");
-        resetVoiceRecordingState();
+        registerFailure("No se escuchó voz durante la grabación de 5 segundos.");
         return;
       }
 
@@ -984,8 +1023,7 @@
       const variance = pitchHistory.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / pitchHistory.length;
 
       if (variance < 0.25) {
-        alert("❌ Error biométrico: Se detectó un audio sintético/robótico sin modulación natural.");
-        resetVoiceRecordingState();
+        registerFailure("Detección de voz sintética/robótica sin modulación natural.");
         return;
       }
 
