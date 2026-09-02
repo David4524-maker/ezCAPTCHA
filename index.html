@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ezCAPTCHA - Antibots</title>
+  <title>ezCAPTCHA - Antibot</title>
   <style>
     :root {
       --ez-primary: #009ee3;
@@ -161,6 +161,15 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+    }
+
+    .ez-timer-badge {
+      background: rgba(255, 255, 255, 0.2);
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 800;
+      letter-spacing: 0.5px;
     }
 
     .ez-choice-body {
@@ -453,7 +462,7 @@
     <div class="ez-modal">
       <div class="ez-modal-header">
         <h3 id="ezCameraSourceTitle">Cámara PC Activa</h3>
-        <span style="font-size: 0.75rem; background: #0077b5; padding: 3px 8px; border-radius: 4px;">Paso 1 / 3</span>
+        <span class="ez-timer-badge">⏱️ <span id="ezHandTimer">5</span>s</span>
       </div>
       <div class="ez-camera-view">
         <video id="ezVideo" class="ez-video-feed" autoplay playsinline muted></video>
@@ -478,6 +487,7 @@
           <h4 style="font-size: 0.75rem; opacity: 0.9;">Paso 2 / 3</h4>
           <h3 id="ezTargetTitle">Cargando desafío...</h3>
         </div>
+        <span class="ez-timer-badge">⏱️ <span id="ezImgTimer">5</span>s</span>
       </div>
       <div class="ez-grid" id="ezGrid"></div>
       <div class="ez-modal-footer">
@@ -511,6 +521,7 @@
     <div class="ez-modal">
       <div class="ez-modal-header">
         <h3>Grabación y Análisis de Voz 🎙️</h3>
+        <span class="ez-timer-badge">⏱️ <span id="ezVoiceTimerDisplay">5</span>s</span>
       </div>
       <div class="ez-camera-view">
         <video id="ezVoiceVideo" class="ez-video-feed" autoplay playsinline muted></video>
@@ -547,13 +558,18 @@
     let skinPixelsDetected = false;
     let selectedDeviceId = null;
 
+    // Temporizadores de 5 segundos
+    let imageTimerInterval = null;
+    let imageTimeLeft = 5;
+
+    let voiceInterval = null;
+    let voiceTimeLeft = 5;
+
     // Audio & Anti-Bot Detection Vars
     let audioContext = null;
     let analyser = null;
     let microphone = null;
     let isRecording = false;
-    let voiceProgress = 0;
-    let voiceInterval = null;
     let pitchHistory = [];
 
     document.getElementById('ezTriggerArea').addEventListener('click', function(e) {
@@ -648,7 +664,8 @@
           scanProgress = 0;
           skinPixelsDetected = false;
           humanMicroMovementDetected = false;
-          scanInterval = setInterval(analyzeHandFrame, 150);
+          // Temporizador de 5s: 100ms * 50 ticks = 5000ms
+          scanInterval = setInterval(analyzeHandFrame, 100);
         };
 
       } catch (err) {
@@ -692,6 +709,7 @@
 
       const statusText = document.getElementById('ezScanStatus');
 
+      // Escaneo estricto de 5 segundos
       if (skinRatio > 0.10) {
         skinPixelsDetected = true;
 
@@ -699,17 +717,21 @@
           humanMicroMovementDetected = true;
         }
 
-        scanProgress += 10;
-        statusText.innerText = "Mano detectada. Analizando biometría...";
+        scanProgress += 2; // Avanza 2% cada 100ms (5 segundos en total)
+        statusText.innerText = "Mano detectada. Mantén la posición...";
         statusText.style.color = "#0077b5";
       } else {
         skinPixelsDetected = false;
-        if (scanProgress > 0) scanProgress -= 5;
-        statusText.innerText = "Coloca tu mano frente a la cámara dentro del recuadro...";
+        if (scanProgress > 0) scanProgress -= 3;
+        statusText.innerText = "Coloca tu mano frente a la cámara...";
         statusText.style.color = "#ef4444";
       }
 
-      document.getElementById('ezProgressFill').style.width = Math.max(0, scanProgress) + "%";
+      const clampedProgress = Math.max(0, Math.min(100, scanProgress));
+      document.getElementById('ezProgressFill').style.width = clampedProgress + "%";
+      
+      const secondsLeft = Math.ceil((100 - clampedProgress) / 20);
+      document.getElementById('ezHandTimer').innerText = secondsLeft;
 
       if (scanProgress >= 100) {
         clearInterval(scanInterval);
@@ -723,7 +745,7 @@
             openImageModal();
           }, 800);
         } else {
-          alert("❌ Escaneo fallido: No se mantuvo una mano humana válida durante la prueba.");
+          alert("❌ Escaneo fallido: No se mantuvo una mano humana válida durante los 5 segundos.");
           resetAllModals();
         }
       }
@@ -739,6 +761,7 @@
       stopCamera();
       if (audioStream) audioStream.getTracks().forEach(track => track.stop());
       clearInterval(scanInterval);
+      clearInterval(imageTimerInterval);
       clearInterval(voiceInterval);
       isRecording = false;
       document.querySelectorAll('.ez-modal-backdrop').forEach(m => m.classList.remove('active'));
@@ -817,10 +840,30 @@
         };
         gridContainer.appendChild(cell);
       }
+
+      // Inicia temporizador de 5 segundos para imágenes
+      startImageTimer();
     }
 
-    // CORRECCIÓN: Validación estricta antes de avanzar al paso de voz
+    function startImageTimer() {
+      clearInterval(imageTimerInterval);
+      imageTimeLeft = 5;
+      document.getElementById('ezImgTimer').innerText = imageTimeLeft;
+
+      imageTimerInterval = setInterval(() => {
+        imageTimeLeft--;
+        document.getElementById('ezImgTimer').innerText = imageTimeLeft;
+
+        if (imageTimeLeft <= 0) {
+          clearInterval(imageTimerInterval);
+          alert("⏱️ ¡Tiempo agotado (5s)! El desafío de imágenes se ha reiniciado.");
+          generateChallenge();
+        }
+      }, 1000);
+    }
+
     document.getElementById('ezVerifyBtn').addEventListener('click', function() {
+      clearInterval(imageTimerInterval);
       const correctIndices = gridData.filter(item => item.isTarget).map(item => item.id);
 
       const hasIncorrect = selectedCells.some(id => !gridData[id].isTarget);
@@ -828,7 +871,7 @@
 
       if (hasIncorrect || hasMissed) {
         alert("❌ Selección incorrecta. Debes seleccionar ÚNICAMENTE las imágenes indicadas.");
-        generateChallenge(); // Reinicia el mapa de imágenes
+        generateChallenge();
         return;
       }
 
@@ -899,29 +942,32 @@
 
       if (!isRecording) {
         isRecording = true;
-        voiceProgress = 0;
+        voiceTimeLeft = 5;
         pitchHistory = [];
         btn.classList.add('recording');
         btn.innerText = "🛑 Grabando... Di la frase";
+        document.getElementById('ezVoiceTimerDisplay').innerText = voiceTimeLeft;
 
         voiceInterval = setInterval(() => {
-          voiceProgress += 20;
-          fill.style.width = voiceProgress + "%";
+          voiceTimeLeft--;
+          document.getElementById('ezVoiceTimerDisplay').innerText = voiceTimeLeft;
+          fill.style.width = ((5 - voiceTimeLeft) * 20) + "%";
 
-          if (voiceProgress >= 100) {
+          if (voiceTimeLeft <= 0) {
             clearInterval(voiceInterval);
             isRecording = false;
             finishCaptcha();
           }
-        }, 600);
+        }, 1000);
       }
     }
 
     function resetVoiceRecordingState() {
       isRecording = false;
-      voiceProgress = 0;
+      voiceTimeLeft = 5;
       pitchHistory = [];
       document.getElementById('ezVoiceProgressFill').style.width = "0%";
+      document.getElementById('ezVoiceTimerDisplay').innerText = "5";
       const btn = document.getElementById('ezRecordBtn');
       btn.classList.remove('recording');
       btn.innerText = "🔴 Presionar para Grabar";
@@ -929,7 +975,7 @@
 
     function finishCaptcha() {
       if (pitchHistory.length < 3) {
-        alert("⚠️ No se escuchó voz durante la grabación. Inténtalo de nuevo.");
+        alert("⚠️ No se escuchó voz durante la grabación de 5 segundos. Inténtalo de nuevo.");
         resetVoiceRecordingState();
         return;
       }
