@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ezCAPTCHA Invisible</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0f172a;
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+
+    .form-card {
+      background: #1e293b;
+      padding: 30px;
+      border-radius: 12px;
+      width: 100%;
+      max-width: 360px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+      border: 1px solid #334155;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.85rem;
+      margin-bottom: 6px;
+      color: #94a3b8;
+    }
+
+    input {
+      width: 100%;
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid #475569;
+      background: #0f172a;
+      color: white;
+      box-sizing: border-box;
+    }
+
+    .btn-submit {
+      width: 100%;
+      padding: 12px;
+      background: #009ee3;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .btn-submit:hover {
+      background: #0077b5;
+    }
+
+    /* Badge de garantía invisible */
+    .ez-invisible-badge {
+      margin-top: 15px;
+      font-size: 0.7rem;
+      color: #64748b;
+      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+    }
+
+    .ez-status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #10b981;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="form-card">
+    <h2 style="margin-bottom: 20px; font-size: 1.2rem;">Iniciar Sesión</h2>
+    <form id="loginForm" onsubmit="handleFormSubmit(event)">
+      <div class="form-group">
+        <label>Usuario</label>
+        <input type="text" id="username" required autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label>Contraseña</label>
+        <input type="password" id="password" required>
+      </div>
+
+      <button type="submit" class="btn-submit">Acceder</button>
+
+      <div class="ez-invisible-badge">
+        <div class="ez-status-dot"></div>
+        Protegido por <strong>ezCAPTCHA Invisible</strong>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    /**
+     * MOTOR INVISIBLE DE ezCAPTCHA
+     * Recopila telemetría de comportamiento local sin enviar datos a servidores externos.
+     */
+    class EzCaptchaInvisible {
+      constructor() {
+        this.mouseMovements = [];
+        this.clickCount = 0;
+        this.keyPressCount = 0;
+        this.startTime = Date.now();
+        this.lastPosition = null;
+        this.isBotDetected = false;
+
+        this.initListeners();
+      }
+
+      initListeners() {
+        // Escuchar movimientos del ratón
+        window.addEventListener('mousemove', (e) => {
+          const now = Date.now();
+          if (this.lastPosition) {
+            const deltaX = Math.abs(e.clientX - this.lastPosition.x);
+            const deltaY = Math.abs(e.clientY - this.lastPosition.y);
+            const deltaTime = now - this.lastPosition.time;
+
+            // Detectar movimientos instantáneos en línea recta (típico de bots/scripts)
+            if (deltaTime > 0) {
+              const speed = Math.sqrt(deltaX * deltaX + deltaY * deltaY) / deltaTime;
+              this.mouseMovements.push({ speed, deltaX, deltaY });
+            }
+          }
+          this.lastPosition = { x: e.clientX, y: e.clientY, time: now };
+        });
+
+        // Escuchar clics e interacción de teclado
+        window.addEventListener('click', () => this.clickCount++);
+        window.addEventListener('keydown', () => this.keyPressCount++);
+      }
+
+      /**
+       * Evalúa la puntuación de humanidad de 0 a 100
+       */
+      evaluateHumanityScore() {
+        let score = 0;
+        const timeSpent = (Date.now() - this.startTime) / 1000;
+
+        // 1. Un humano tarda al menos 1.2 segundos en interactuar/enviar un formulario
+        if (timeSpent >= 1.2) score += 30;
+
+        // 2. Presencia de movimientos de ratón aleatorios y con aceleración natural
+        if (this.mouseMovements.length > 5) {
+          score += 30;
+
+          // Calcular varianza en velocidad (los bots se mueven a velocidad fija o en ángulo recto)
+          const speeds = this.mouseMovements.map(m => m.speed);
+          const avgSpeed = speeds.reduce((a, b) => a + b, 0) / speeds.length;
+          const variance = speeds.reduce((a, b) => a + Math.pow(b - avgSpeed, 2), 0) / speeds.length;
+
+          if (variance > 0.1) score += 20; // Aceleración humana curva
+        }
+
+        // 3. Interacción física combinada (teclado + clicks)
+        if (this.keyPressCount > 0 || this.clickCount > 1) score += 20;
+
+        return Math.min(100, score);
+      }
+
+      async verify() {
+        const score = this.evaluateHumanityScore();
+        console.log(`[ezCAPTCHA Invisible] Humanity Score: ${score}/100`);
+
+        if (score >= 60) {
+          return { success: true, method: 'invisible-background', score };
+        } else {
+          // Si el comportamiento es sospechoso, se requiere intervención humana activa
+          return { success: false, method: 'fallback-required', score };
+        }
+      }
+    }
+
+    const ezInvisible = new EzCaptchaInvisible();
+
+    async function handleFormSubmit(event) {
+      event.preventDefault();
+
+      const result = await ezInvisible.verify();
+
+      if (result.success) {
+        alert(`✅ Verificación Invisible Exitosa!\nPuntuación Humana: ${result.score}/100\n\nFormulario enviado correctamente.`);
+      } else {
+        alert(`⚠️ Comportamiento sospechoso o ejecución automatizada detectada (Puntuación: ${result.score}/100).\n\nActivando prueba biométrica física...`);
+        // Aquí se dispara el modal biométrico desplegado anteriormente
+      }
+    }
+  </script>
+</body>
+</html>
