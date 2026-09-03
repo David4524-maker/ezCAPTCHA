@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ezCAPTCHA - Anti-Linear Detection</title>
+  <style>
+    :root {
+      --ez-primary: #009ee3;
+      --ez-success: #10b981;
+      --ez-danger: #ef4444;
+      --ez-bg: #0f172a;
+      --ez-border: #cbd5e1;
+      --ez-text: #1e293b;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+
+    body {
+      background: var(--ez-bg);
+      color: var(--ez-text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .ez-container {
+      background: white;
+      padding: 20px;
+      border-radius: 14px;
+      box-shadow: 0 15px 25px -5px rgba(0, 0, 0, 0.3);
+      width: 100%;
+      max-width: 340px;
+      border: 1px solid #334155;
+    }
+
+    .ez-captcha-box {
+      width: 100%;
+      background: #f8fafc;
+      border: 2px solid var(--ez-border);
+      border-radius: 10px;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      user-select: none;
+      transition: all 0.25s ease;
+    }
+
+    .ez-checkbox-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+    }
+
+    .ez-checkbox {
+      width: 28px;
+      height: 28px;
+      border: 2.5px solid #94a3b8;
+      border-radius: 6px;
+      background: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+      position: relative;
+    }
+
+    .ez-spinner {
+      display: none;
+      width: 16px;
+      height: 16px;
+      border: 3px solid #cbd5e1;
+      border-top-color: var(--ez-primary);
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .ez-checkmark {
+      display: none;
+      color: white;
+      font-weight: bold;
+      font-size: 1.1rem;
+    }
+
+    .ez-text {
+      font-size: 0.92rem;
+      font-weight: 600;
+      color: #334155;
+      transition: color 0.2s;
+    }
+
+    .ez-branding {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+    }
+
+    .ez-logo-container {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .ez-logo-icon {
+      width: 18px;
+      height: 22px;
+    }
+
+    .ez-logo {
+      font-weight: 900;
+      font-size: 0.9rem;
+      color: #0f172a;
+    }
+
+    .ez-subtext {
+      font-size: 0.62rem;
+      color: #94a3b8;
+      font-weight: 600;
+    }
+
+    /* Estado Verificado */
+    .ez-captcha-box.verified {
+      border-color: var(--ez-success);
+      background: #f0fdf4;
+    }
+
+    .ez-captcha-box.verified .ez-checkbox {
+      background: var(--ez-success);
+      border-color: var(--ez-success);
+    }
+
+    .ez-captcha-box.verified .ez-text {
+      color: #065f46;
+    }
+
+    /* Estado Bloqueado/Error */
+    .ez-captcha-box.failed {
+      border-color: var(--ez-danger);
+      background: #fef2f2;
+    }
+
+    .ez-captcha-box.failed .ez-checkbox {
+      background: var(--ez-danger);
+      border-color: var(--ez-danger);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="ez-container">
+    <div class="ez-captcha-box" id="ezBox">
+      <div class="ez-checkbox-wrapper" id="ezTrigger">
+        <div class="ez-checkbox" id="ezCheckbox">
+          <div class="ez-spinner" id="ezSpinner"></div>
+          <span class="ez-checkmark" id="ezCheckmark">✓</span>
+        </div>
+        <span class="ez-text" id="ezText">No soy un robot</span>
+      </div>
+
+      <div class="ez-branding">
+        <div class="ez-logo-container">
+          <svg class="ez-logo-icon" viewBox="0 0 100 120">
+            <polygon points="10,10 50,45 50,112 10,77" fill="#009ee3" stroke="#009ee3" stroke-width="6" stroke-linejoin="round"/>
+            <polygon points="50,45 90,10 90,77 50,112" fill="#c3c3c3" stroke="#009ee3" stroke-width="6" stroke-linejoin="round"/>
+          </svg>
+          <span class="ez-logo">ezCAPTCHA</span>
+        </div>
+        <span class="ez-subtext">Curve Protection</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let mousePath = [];
+    let isVerified = false;
+
+    // Rastrear la trayectoria continua del cursor
+    window.addEventListener('mousemove', (e) => {
+      if (isVerified) return;
+      
+      mousePath.push({ x: e.clientX, y: e.clientY, time: Date.now() });
+
+      // Guardar máximo 25 muestras de movimiento previo al clic
+      if (mousePath.length > 25) mousePath.shift();
+    });
+
+    const trigger = document.getElementById('ezTrigger');
+    const box = document.getElementById('ezBox');
+    const checkbox = document.getElementById('ezCheckbox');
+    const spinner = document.getElementById('ezSpinner');
+    const checkmark = document.getElementById('ezCheckmark');
+    const text = document.getElementById('ezText');
+
+    trigger.addEventListener('click', function(e) {
+      if (isVerified) return;
+
+      // 1. Validar que el evento sea generado por un usuario real y no un script trigger
+      if (!e.isTrusted) {
+        failVerification("Clic simulado mediante script (.click())");
+        return;
+      }
+
+      spinner.style.display = 'block';
+
+      setTimeout(() => {
+        // 2. Evaluar si la trayectoria previa es una línea recta perfecta
+        const isStraight = checkStraightLine(mousePath);
+
+        if (isStraight) {
+          failVerification("Trayectoria lineal detectada (Bot)");
+        } else {
+          passVerification();
+        }
+      }, 250);
+    });
+
+    /**
+     * Algoritmo de detección de línea recta:
+     * Calcula la desviación máxima (curvatura) de todos los puntos
+     * respecto a la recta trazada entre el punto inicial y el punto final.
+     */
+    function checkStraightLine(points) {
+      // Si no se registraron suficientes puntos o el clic ocurrió sin movimiento previo
+      if (points.length < 4) return true;
+
+      const pStart = points[0];
+      const pEnd = points[points.length - 1];
+
+      const dx = pEnd.x - pStart.x;
+      const dy = pEnd.y - pStart.y;
+      const lineLengthSq = dx * dx + dy * dy;
+
+      // Si el desplazamiento total fue casi nulo (salto instantáneo al botón)
+      if (lineLengthSq < 15) return true;
+
+      let maxDeviation = 0;
+
+      // Calcular la distancia perpendicular de cada punto intermedio a la recta pStart -> pEnd
+      for (let i = 1; i < points.length - 1; i++) {
+        const p = points[i];
+        
+        // Fórmula de distancia perpendicular de un punto a una recta
+        const numerator = Math.abs(dy * p.x - dx * p.y + pEnd.x * pStart.y - pEnd.y * pStart.x);
+        const distance = numerator / Math.sqrt(lineLengthSq);
+
+        if (distance > maxDeviation) {
+          maxDeviation = distance;
+        }
+      }
+
+      // Umbral de tolerancia: Si la curvatura máxima es inferior a 2.5 píxeles, se considera recta
+      console.log("[ezCAPTCHA] Curvatura máxima del cursor:", maxDeviation.toFixed(2), "px");
+      return maxDeviation < 2.5;
+    }
+
+    function passVerification() {
+      isVerified = true;
+      spinner.style.display = 'none';
+      checkmark.style.display = 'block';
+      box.classList.add('verified');
+      text.innerText = "Verificado";
+    }
+
+    function failVerification(reason) {
+      spinner.style.display = 'none';
+      box.classList.add('failed');
+      checkbox.innerHTML = '<span style="color:white; font-weight:bold;">✕</span>';
+      text.innerText = "Robot Detectado";
+      text.style.color = '#b91c1c';
+      console.warn("[ezCAPTCHA Bloqueado]:", reason);
+    }
+  </script>
+</body>
+</html>
