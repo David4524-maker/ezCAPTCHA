@@ -1,206 +1,672 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ezCAPTCHA Invisible</title>
-  <style>
-    body {
-      font-family: 'Segoe UI', system-ui, sans-serif;
-      background: #0f172a;
-      color: white;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-      margin: 0;
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Formulario de acceso protegido por ezCAPTCHA Invisible.">
+<title>ezCAPTCHA Invisible</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  :root {
+    --ez-bg: #0f172a; --ez-surface: #1e293b; --ez-field: #0f172a; --ez-border: #334155;
+    --ez-text: #e2e8f0; --ez-muted: #94a3b8; --ez-primary: #009ee3; --ez-primary-h: #0077b5;
+    --ez-success: #10b981; --ez-danger: #ef4444; --ez-warning: #f59e0b; --ez-radius: 12px;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --ez-bg: #f1f5f9; --ez-surface: #ffffff; --ez-field: #f8fafc; --ez-border: #cbd5e1;
+      --ez-text: #0f172a; --ez-muted: #64748b;
     }
-
-    .form-card {
-      background: #1e293b;
-      padding: 30px;
-      border-radius: 12px;
-      width: 100%;
-      max-width: 360px;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-      border: 1px solid #334155;
-    }
-
-    .form-group {
-      margin-bottom: 16px;
-    }
-
-    label {
-      display: block;
-      font-size: 0.85rem;
-      margin-bottom: 6px;
-      color: #94a3b8;
-    }
-
-    input {
-      width: 100%;
-      padding: 10px;
-      border-radius: 6px;
-      border: 1px solid #475569;
-      background: #0f172a;
-      color: white;
-      box-sizing: border-box;
-    }
-
-    .btn-submit {
-      width: 100%;
-      padding: 12px;
-      background: #009ee3;
-      color: white;
-      border: none;
-      border-radius: 6px;
-      font-weight: bold;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-
-    .btn-submit:hover {
-      background: #0077b5;
-    }
-
-    /* Badge de garantía invisible */
-    .ez-invisible-badge {
-      margin-top: 15px;
-      font-size: 0.7rem;
-      color: #64748b;
-      text-align: center;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 5px;
-    }
-
-    .ez-status-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: #10b981;
-    }
-  </style>
+  }
+  html, body { height: 100%; }
+  body {
+    margin: 0; padding: 20px; display: flex; align-items: center; justify-content: center;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--ez-bg); color: var(--ez-text);
+    transition: background .3s ease, color .3s ease;
+  }
+  .ez-skip {
+    position: absolute; left: -9999px; top: 0; z-index: 10;
+    background: var(--ez-primary); color: #fff; padding: 8px 12px; border-radius: 0 0 8px 0;
+  }
+  .ez-skip:focus { left: 0; }
+  .form-card {
+    background: var(--ez-surface); border: 1px solid var(--ez-border);
+    border-radius: var(--ez-radius); padding: 28px; width: 100%; max-width: 380px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, .25);
+  }
+  h1 { font-size: 1.15rem; margin: 0 0 20px; }
+  .form-group { margin-bottom: 16px; }
+  label { display: block; font-size: .85rem; margin-bottom: 6px; color: var(--ez-muted); }
+  .ez-input-wrap { position: relative; display: flex; align-items: center; }
+  input {
+    width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--ez-border);
+    background: var(--ez-field); color: var(--ez-text); font-size: .95rem;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  input:focus { outline: none; border-color: var(--ez-primary); box-shadow: 0 0 0 3px rgba(0, 158, 227, .25); }
+  input[aria-invalid="true"] { border-color: var(--ez-danger); }
+  input:disabled, button:disabled { opacity: .55; cursor: not-allowed; }
+  .ez-toggle {
+    position: absolute; right: 6px; background: transparent; border: 0; color: var(--ez-muted);
+    cursor: pointer; font-size: .75rem; padding: 6px 8px; border-radius: 6px;
+  }
+  .ez-toggle:hover:not(:disabled) { color: var(--ez-text); }
+  .ez-error { font-size: .75rem; color: var(--ez-danger); margin: 6px 0 0; min-height: 1em; }
+  .btn-submit {
+    width: 100%; padding: 12px; border: 0; border-radius: 8px; background: var(--ez-primary);
+    color: #fff; font-weight: 700; font-size: .95rem; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    transition: background .2s, opacity .2s;
+  }
+  .btn-submit:hover:not(:disabled) { background: var(--ez-primary-h); }
+  .ez-spinner {
+    width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.4);
+    border-top-color: #fff; border-radius: 50%; display: none; animation: ezspin .7s linear infinite;
+  }
+  .btn-submit[data-loading="true"] .ez-spinner { display: block; }
+  @keyframes ezspin { to { transform: rotate(360deg); } }
+  .ez-invisible-badge {
+    margin-top: 16px; font-size: .7rem; color: var(--ez-muted);
+    display: flex; align-items: center; justify-content: center; gap: 6px; text-align: center;
+  }
+  .ez-status-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--ez-warning); transition: background .3s;
+  }
+  .ez-status-dot.ok { background: var(--ez-success); }
+  .ez-status-dot.bad { background: var(--ez-danger); }
+  .ez-challenge {
+    margin-top: 16px; padding: 14px; border: 1px dashed var(--ez-border); border-radius: 10px;
+    background: rgba(148, 163, 184, .08); text-align: center;
+  }
+  .ez-challenge p { font-size: .78rem; color: var(--ez-muted); margin: 0 0 10px; line-height: 1.4; }
+  .ez-challenge small { display:block; margin-top:6px; font-size:.68rem; color: var(--ez-warning); }
+  .ez-hold {
+    position: relative; width: 100%; padding: 14px; border-radius: 10px;
+    border: 2px solid var(--ez-primary); background: var(--ez-field); color: var(--ez-text);
+    font-weight: 700; font-size: .9rem; cursor: pointer; overflow: hidden;
+    touch-action: none; user-select: none; -webkit-user-select: none;
+    transition: border-color .2s, transform .1s, background .2s;
+  }
+  .ez-hold:active:not(:disabled) { transform: scale(.98); }
+  .ez-hold-bar {
+    position: absolute; inset: 0; width: 0%;
+    background: linear-gradient(90deg, rgba(0,158,227,.55), rgba(16,185,129,.55));
+    transition: width .08s linear, background .2s;
+  }
+  .ez-hold span { position: relative; z-index: 1; display: inline-block; }
+  .ez-hold .ez-hold-timer {
+    display: inline-block; min-width: 2ch; font-variant-numeric: tabular-nums;
+    font-size: 1.05rem; margin-right: 4px;
+  }
+  /* Feedback visual cuando se suelta: peligro */
+  .ez-hold.released { border-color: var(--ez-danger); color: var(--ez-danger); }
+  .ez-hold.released .ez-hold-bar {
+    background: linear-gradient(90deg, rgba(239,68,68,.5), rgba(239,68,68,.75));
+  }
+  .ez-hold.done { border-color: var(--ez-success); color: var(--ez-success); }
+  .ez-hold.done .ez-hold-bar { background: var(--ez-success); }
+  .ez-hold.bot { border-color: var(--ez-danger); color: var(--ez-danger); }
+  .ez-hold.bot .ez-hold-bar { background: var(--ez-danger); }
+  .ez-msg { margin-top: 12px; font-size: .8rem; text-align: center; min-height: 1.2em; }
+  .ez-msg.ok { color: var(--ez-success); }
+  .ez-msg.err { color: var(--ez-danger); }
+  .ez-msg.warn { color: var(--ez-warning); }
+  .ez-debug {
+    margin-top: 12px; font-size: .68rem; color: var(--ez-muted);
+    font-family: ui-monospace, monospace; white-space: pre-wrap; display: none;
+  }
+  .ez-locked {
+    margin-top: 16px; padding: 14px; border-radius: 10px;
+    background: rgba(239, 68, 68, .12); border: 1px solid var(--ez-danger);
+    text-align: center; font-size: .82rem; color: var(--ez-danger);
+  }
+  .ez-locked button {
+    margin-top: 10px; padding: 8px 14px; border-radius: 8px; border: 0;
+    background: var(--ez-danger); color: #fff; font-weight: 700; cursor: pointer;
+    font-size: .8rem;
+  }
+  :focus-visible { outline: 2px solid var(--ez-primary); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; }
+  }
+</style>
 </head>
 <body>
 
-  <div class="form-card">
-    <h2 style="margin-bottom: 20px; font-size: 1.2rem;">Iniciar Sesión</h2>
-    <form id="loginForm" onsubmit="handleFormSubmit(event)">
-      <div class="form-group">
-        <label>Usuario</label>
-        <input type="text" id="username" required autocomplete="off">
+<a class="ez-skip" href="#loginForm">Saltar al formulario</a>
+
+<main class="form-card">
+  <h1>Iniciar Sesión</h1>
+
+  <form id="loginForm" novalidate autocomplete="on">
+    <div class="form-group">
+      <label for="username">Usuario</label>
+      <input id="username" name="username" type="text" autocomplete="username"
+             required aria-describedby="username-error">
+      <p class="ez-error" id="username-error" role="alert"></p>
+    </div>
+
+    <div class="form-group">
+      <label for="password">Contraseña</label>
+      <div class="ez-input-wrap">
+        <input id="password" name="password" type="password"
+               autocomplete="current-password" required aria-describedby="password-error">
+        <button type="button" class="ez-toggle" id="togglePwd"
+                aria-label="Mostrar contraseña" aria-pressed="false">Ver</button>
       </div>
-      <div class="form-group">
-        <label>Contraseña</label>
-        <input type="password" id="password" required>
-      </div>
+      <p class="ez-error" id="password-error" role="alert"></p>
+    </div>
 
-      <button type="submit" class="btn-submit">Acceder</button>
+    <button type="submit" class="btn-submit" id="submitBtn">
+      <span class="ez-spinner" aria-hidden="true"></span>
+      <span class="btn-label">Acceder</span>
+    </button>
 
-      <div class="ez-invisible-badge">
-        <div class="ez-status-dot"></div>
-        Protegido por <strong>ezCAPTCHA Invisible</strong>
-      </div>
-    </form>
-  </div>
+    <div class="ez-invisible-badge" role="status" aria-live="polite">
+      <div class="ez-status-dot" id="ezDot"></div>
+      <span id="ezBadgeText">Protegido por <strong>ezCAPTCHA Invisible</strong></span>
+    </div>
 
-  <script>
-    /**
-     * MOTOR INVISIBLE DE ezCAPTCHA
-     * Recopila telemetría de comportamiento local sin enviar datos a servidores externos.
-     */
-    class EzCaptchaInvisible {
-      constructor() {
-        this.mouseMovements = [];
-        this.clickCount = 0;
-        this.keyPressCount = 0;
-        this.startTime = Date.now();
-        this.lastPosition = null;
-        this.isBotDetected = false;
+    <div class="ez-challenge" id="ezChallenge" hidden>
+      <p id="ezChallengeText">
+        Verificación adicional requerida.<br>
+        <strong>Mantén pulsado 5 segundos sin soltar.</strong>
+        <small>Si sueltas antes, el contador sigue avanzando y serás marcado como bot.</small>
+      </p>
+      <button type="button" class="ez-hold" id="ezHold" aria-describedby="ezChallengeText">
+        <div class="ez-hold-bar" id="ezHoldBar"></div>
+        <span id="ezHoldLabel">
+          <span class="ez-hold-timer" id="ezHoldTimer">5s</span>
+          Mantener pulsado
+        </span>
+      </button>
+    </div>
 
-        this.initListeners();
+    <div class="ez-locked" id="ezLocked" hidden>
+      <strong>🤖 Robot detectado.</strong>
+      <p style="margin-top:6px; color:inherit;">La verificación se ha bloqueado.</p>
+      <button type="button" id="ezReload">Recargar página</button>
+    </div>
+
+    <p class="ez-msg" id="ezMsg" role="status" aria-live="polite"></p>
+    <pre class="ez-debug" id="ezDebug" aria-hidden="true"></pre>
+  </form>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  const CONFIG = {
+    debug: false,
+    minHumanTime: 1200,
+    pathWindowMs: 1600,
+    minPointerSamples: 6,
+    speedVarianceMin: 0.08,
+    straightnessMax: 2.5,
+    passScore: 60,
+    maxAttempts: 3,
+    lockoutMs: 10000,
+    tokenTTL: 120000,
+    holdMs: 5000,
+    uiDelay: 400
+  };
+
+  const I18N = {
+    verifying: 'Verificando comportamiento…',
+    ok: 'Verificación invisible correcta',
+    fail: 'Comportamiento automatizado detectado',
+    challenge: 'Verificación adicional requerida. Mantén pulsado 5 segundos.',
+    locked: 'Demasiados intentos. Espera %s s.',
+    submitOk: 'Acceso concedido. Formulario enviado.',
+    changed: 'Los datos han cambiado: se requiere nueva verificación.',
+    invalidUser: 'Introduce un usuario válido (mín. 3 caracteres).',
+    invalidPass: 'La contraseña debe tener al menos 6 caracteres.',
+    invalidForm: 'Revisa los campos marcados.',
+    holdPrompt: 'Mantener pulsado',
+    holdDone: 'Verificado',
+    holdReleased: 'Has soltado el botón. El contador sigue…',
+    holdCanceled: 'Puntero cancelado. El contador sigue…',
+    holdBlur: 'Ventana sin foco. El contador sigue…',
+    botDetected: '🤖 Robot detectado. Recarga la página para reiniciar.'
+  };
+
+  const now = () => performance.now();
+
+  function randomHex(bytes) {
+    const buf = new Uint8Array(bytes);
+    if (window.crypto && window.crypto.getRandomValues) {
+      window.crypto.getRandomValues(buf);
+    } else {
+      for (let i = 0; i < bytes; i++) buf[i] = Math.floor(Math.random() * 256);
+    }
+    return Array.from(buf, b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  class EzCaptchaInvisible {
+    constructor(config) {
+      this.cfg = Object.assign({}, CONFIG, config || {});
+      this.reset();
+      this.detectEnvironment();
+      this.bind();
+    }
+    reset() {
+      this.pointerPath = [];
+      this.lastPoint = null;
+      this.stats = { pointerSamples: 0, clicks: 0, keys: 0, pastes: 0, scrolls: 0, touches: 0 };
+      this.startTime = now();
+      this.attempts = 0;
+      this.lockedUntil = 0;
+      this.verification = null;
+      this.lastScore = null;
+    }
+    detectEnvironment() {
+      this.env = { webdriver:false, suspiciousUA:false, noLanguages:false, zeroViewport:false, noStorage:false, automated:false };
+      try {
+        if (navigator.webdriver === true) { this.env.webdriver = true; this.env.automated = true; }
+        const ua = navigator.userAgent || '';
+        if (/HeadlessChrome|PhantomJS|Selenium|Puppeteer|Playwright/i.test(ua)) {
+          this.env.suspiciousUA = true; this.env.automated = true;
+        }
+        if (!navigator.languages || navigator.languages.length === 0) this.env.noLanguages = true;
+        if (window.outerWidth === 0 && window.outerHeight === 0) this.env.zeroViewport = true;
+        const probe = '__ez_probe__';
+        window.localStorage.setItem(probe, '1');
+        window.localStorage.removeItem(probe);
+      } catch (err) { this.env.noStorage = true; }
+    }
+    bind() {
+      const opts = { passive: true };
+      window.addEventListener('pointermove', (e) => this.pushPoint(e), opts);
+      window.addEventListener('pointerdown', () => { this.stats.clicks++; }, opts);
+      window.addEventListener('keydown', () => { this.stats.keys++; }, opts);
+      window.addEventListener('paste', () => { this.stats.pastes++; }, opts);
+      window.addEventListener('scroll', () => { this.stats.scrolls++; }, opts);
+      window.addEventListener('touchstart', () => { this.stats.touches++; }, opts);
+      window.addEventListener('resize', () => {
+        this.pointerPath.length = 0; this.lastPoint = null;
+      }, opts);
+    }
+    pushPoint(e) {
+      const t = now();
+      const p = { x: e.clientX, y: e.clientY, t, speed: 0, dist: 0 };
+      const last = this.lastPoint;
+      if (last) {
+        const dt = t - last.t;
+        if (dt > 0) {
+          const dx = p.x - last.x, dy = p.y - last.y;
+          p.dist = Math.hypot(dx, dy);
+          p.speed = p.dist / dt;
+        }
       }
-
-      initListeners() {
-        // Escuchar movimientos del ratón
-        window.addEventListener('mousemove', (e) => {
-          const now = Date.now();
-          if (this.lastPosition) {
-            const deltaX = Math.abs(e.clientX - this.lastPosition.x);
-            const deltaY = Math.abs(e.clientY - this.lastPosition.y);
-            const deltaTime = now - this.lastPosition.time;
-
-            // Detectar movimientos instantáneos en línea recta (típico de bots/scripts)
-            if (deltaTime > 0) {
-              const speed = Math.sqrt(deltaX * deltaX + deltaY * deltaY) / deltaTime;
-              this.mouseMovements.push({ speed, deltaX, deltaY });
-            }
+      this.lastPoint = p;
+      this.pointerPath.push(p);
+      if (this.pointerPath.length > 80) this.pointerPath.shift();
+      this.stats.pointerSamples++;
+    }
+    analyzePath() {
+      const cutoff = now() - this.cfg.pathWindowMs;
+      const pts = this.pointerPath.filter(p => p.t >= cutoff);
+      const speeds = [];
+      let length = 0, turns = 0, prevDx = null, prevDy = null, prevSign = 0;
+      for (let i = 1; i < pts.length; i++) {
+        const dx = pts[i].x - pts[i-1].x, dy = pts[i].y - pts[i-1].y;
+        const d = Math.hypot(dx, dy);
+        if (d > 0.4) { length += d; speeds.push(pts[i].speed || 0); }
+        if (prevDx !== null && d > 0.4) {
+          const cross = prevDx * dy - prevDy * dx;
+          if (Math.abs(cross) > 2) {
+            const sign = cross > 0 ? 1 : -1;
+            if (prevSign !== 0 && sign !== prevSign) turns++;
+            prevSign = sign;
           }
-          this.lastPosition = { x: e.clientX, y: e.clientY, time: now };
-        });
-
-        // Escuchar clics e interacción de teclado
-        window.addEventListener('click', () => this.clickCount++);
-        window.addEventListener('keydown', () => this.keyPressCount++);
-      }
-
-      /**
-       * Evalúa la puntuación de humanidad de 0 a 100
-       */
-      evaluateHumanityScore() {
-        let score = 0;
-        const timeSpent = (Date.now() - this.startTime) / 1000;
-
-        // 1. Un humano tarda al menos 1.2 segundos en interactuar/enviar un formulario
-        if (timeSpent >= 1.2) score += 30;
-
-        // 2. Presencia de movimientos de ratón aleatorios y con aceleración natural
-        if (this.mouseMovements.length > 5) {
-          score += 30;
-
-          // Calcular varianza en velocidad (los bots se mueven a velocidad fija o en ángulo recto)
-          const speeds = this.mouseMovements.map(m => m.speed);
-          const avgSpeed = speeds.reduce((a, b) => a + b, 0) / speeds.length;
-          const variance = speeds.reduce((a, b) => a + Math.pow(b - avgSpeed, 2), 0) / speeds.length;
-
-          if (variance > 0.1) score += 20; // Aceleración humana curva
         }
-
-        // 3. Interacción física combinada (teclado + clicks)
-        if (this.keyPressCount > 0 || this.clickCount > 1) score += 20;
-
-        return Math.min(100, score);
+        prevDx = dx; prevDy = dy;
       }
+      const avg = speeds.length ? speeds.reduce((a,b)=>a+b,0)/speeds.length : 0;
+      const variance = speeds.length ? speeds.reduce((a,b)=>a+(b-avg)**2,0)/speeds.length : 0;
+      return { samples: pts.length, length, avgSpeed: avg, variance, turns, maxDeviation: this.maxDeviation(pts) };
+    }
+    maxDeviation(pts) {
+      if (pts.length < 4) return 0;
+      const a = pts[0], b = pts[pts.length - 1];
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const lenSq = dx*dx + dy*dy;
+      if (lenSq < 15) return -1;
+      let max = 0;
+      for (let i = 1; i < pts.length - 1; i++) {
+        const p = pts[i];
+        const num = Math.abs(dy*p.x - dx*p.y + b.x*a.y - b.y*a.x);
+        const dist = num / Math.sqrt(lenSq);
+        if (dist > max) max = dist;
+      }
+      return max;
+    }
+    evaluate() {
+      const elapsed = now() - this.startTime;
+      const m = this.analyzePath();
+      const s = this.stats;
+      const breakdown = [];
+      let score = 0;
+      const add = (label, earned, max) => { score += earned; breakdown.push({ criterio: label, puntos: earned, max }); };
+      if (this.env.automated) {
+        breakdown.push({ criterio:'Entorno automatizado', puntos:0, max:100 });
+        return { score: 0, breakdown, metrics: m, hardFail: true };
+      }
+      add('Tiempo de interacción', elapsed >= this.cfg.minHumanTime ? 18 : 0, 18);
+      add('Densidad de muestras', Math.round(18*Math.min(1, m.samples/this.cfg.minPointerSamples)), 18);
+      add('Varianza de velocidad', m.variance >= this.cfg.speedVarianceMin ? 16 : 0, 16);
+      const isStraight = m.maxDeviation >= 0 && m.maxDeviation < this.cfg.straightnessMax;
+      add('Curvatura del trazo', isStraight ? 0 : 16, 16);
+      add('Cambios de dirección', Math.min(12, m.turns*4), 12);
+      add('Interacción de teclado', s.keys > 0 ? 10 : 0, 10);
+      add('Clics / toques reales', (s.clicks + s.touches) > 0 ? 6 : 0, 6);
+      add('Señales ambientales', (!this.env.noLanguages?2:0) + (!this.env.zeroViewport?2:0), 4);
+      return { score: Math.max(0, Math.min(100, score)), breakdown, metrics: m, hardFail: false };
+    }
+    async verify() {
+      const t = Date.now();
+      if (t < this.lockedUntil) {
+        return { success:false, locked:true, remaining: Math.ceil((this.lockedUntil - t)/1000) };
+      }
+      const result = this.evaluate();
+      this.lastScore = result.score;
+      if (result.score >= this.cfg.passScore) {
+        this.verification = this.issueToken(result.score);
+        return { success:true, score:result.score, breakdown:result.breakdown, token:this.verification };
+      }
+      this.attempts++;
+      if (this.attempts >= this.cfg.maxAttempts) {
+        this.lockedUntil = Date.now() + this.cfg.lockoutMs;
+        this.attempts = 0;
+      }
+      return { success:false, score:result.score, breakdown:result.breakdown, metrics:result.metrics };
+    }
+    issueToken(score) {
+      return { value: randomHex(16), score, issuedAt: Date.now(), expiresAt: Date.now() + this.cfg.tokenTTL };
+    }
+    isTokenValid() { return !!(this.verification && Date.now() < this.verification.expiresAt); }
+    invalidate() { this.verification = null; }
+  }
 
-      async verify() {
-        const score = this.evaluateHumanityScore();
-        console.log(`[ezCAPTCHA Invisible] Humanity Score: ${score}/100`);
+  /* ============================================================
+     UI
+     ============================================================ */
+  const $ = (id) => document.getElementById(id);
+  const form       = $('loginForm');
+  const userEl     = $('username');
+  const passEl     = $('password');
+  const userErr    = $('username-error');
+  const passErr    = $('password-error');
+  const togglePwd  = $('togglePwd');
+  const btn        = $('submitBtn');
+  const btnLabel   = btn.querySelector('.btn-label');
+  const dot        = $('ezDot');
+  const badgeText  = $('ezBadgeText');
+  const msg        = $('ezMsg');
+  const challenge  = $('ezChallenge');
+  const holdBtn    = $('ezHold');
+  const holdBar    = $('ezHoldBar');
+  const holdTimer  = $('ezHoldTimer');
+  const holdLabel  = $('ezHoldLabel');
+  const lockedPanel = $('ezLocked');
+  const reloadBtn  = $('ezReload');
+  const debugOut   = $('ezDebug');
 
-        if (score >= 60) {
-          return { success: true, method: 'invisible-background', score };
-        } else {
-          // Si el comportamiento es sospechoso, se requiere intervención humana activa
-          return { success: false, method: 'fallback-required', score };
-        }
+  const captcha = new EzCaptchaInvisible({ debug: CONFIG.debug });
+
+  let submitting = false;
+
+  /* ============================================================
+     ESTADO DEL RETO DE 5 SEGUNDOS
+     ============================================================ */
+  const HOLD_MS = CONFIG.holdMs;
+  let holdPhase = 'idle';     // idle | running | verified | bot
+  let holdStart = 0;
+  let holdRaf = null;
+  let wasReleased = false;    // flag de un solo sentido: si es true, es bot al terminar
+  let pageLocked = false;
+
+  function setMsg(text, type) {
+    msg.textContent = text || '';
+    msg.className = 'ez-msg' + (type ? ' ' + type : '');
+  }
+  function setDot(state) { dot.className = 'ez-status-dot' + (state ? ' ' + state : ''); }
+  function setLoading(on) {
+    btn.disabled = on;
+    btn.dataset.loading = on ? 'true' : 'false';
+    btn.setAttribute('aria-busy', on ? 'true' : 'false');
+    btnLabel.textContent = on ? 'Verificando…' : 'Acceder';
+  }
+  function resetBadge() {
+    setDot('');
+    badgeText.innerHTML = 'Protegido por <strong>ezCAPTCHA Invisible</strong>';
+  }
+  function setFieldError(input, errEl, message) {
+    if (message) { input.setAttribute('aria-invalid','true'); errEl.textContent = message; return false; }
+    input.removeAttribute('aria-invalid'); errEl.textContent = '';
+    return true;
+  }
+  function validateForm() {
+    const okUser = setFieldError(userEl, userErr, userEl.value.trim().length >= 3 ? '' : I18N.invalidUser);
+    const okPass = setFieldError(passEl, passErr, passEl.value.length >= 6 ? '' : I18N.invalidPass);
+    return okUser && okPass;
+  }
+
+  togglePwd.addEventListener('click', () => {
+    if (pageLocked) return;
+    const visible = passEl.type === 'text';
+    passEl.type = visible ? 'password' : 'text';
+    togglePwd.setAttribute('aria-pressed', String(!visible));
+    togglePwd.setAttribute('aria-label', visible ? 'Mostrar contraseña' : 'Ocultar contraseña');
+    togglePwd.textContent = visible ? 'Ver' : 'Ocultar';
+    passEl.focus();
+  });
+
+  [userEl, passEl].forEach((el) => {
+    el.addEventListener('input', () => {
+      if (captcha.isTokenValid()) {
+        captcha.invalidate();
+        resetBadge();
+        setMsg(I18N.changed);
+      }
+    });
+  });
+
+  /* ============================================================
+     RENDER DEL CONTADOR
+     ============================================================ */
+  const holdLabelSuffix = () => holdLabel.childNodes[holdLabel.childNodes.length - 1];
+
+  function renderHold(elapsed) {
+    const p = Math.min(1, elapsed / HOLD_MS);
+    holdBar.style.width = (p * 100) + '%';
+    const remaining = Math.max(0, HOLD_MS - elapsed);
+    const secs = Math.ceil(remaining / 1000);
+    holdTimer.textContent = secs > 0 ? secs + 's' : '0s';
+    holdLabelSuffix().textContent = ' ' + (secs > 0 ? I18N.holdPrompt : I18N.holdDone);
+  }
+
+  /* ============================================================
+     LÓGICA DEL RETO — una vez iniciado, el contador NUNCA se detiene
+     y `wasReleased` marca de forma permanente que se soltó
+     ============================================================ */
+  function beginHold() {
+    if (pageLocked || holdPhase !== 'idle') return;
+    holdPhase = 'running';
+    holdStart = now();
+    wasReleased = false;
+    holdBtn.classList.remove('done', 'bot', 'released');
+    setMsg('Mantén pulsado sin soltar durante 5 segundos…', 'warn');
+    requestAnimationFrame(tickHold);
+  }
+
+  function markReleased(reason) {
+    if (holdPhase !== 'running' || wasReleased) return;
+    wasReleased = true;
+    holdBtn.classList.add('released');
+    setMsg(reason, 'err');
+  }
+
+  function tickHold() {
+    if (holdPhase !== 'running') return;
+    const elapsed = now() - holdStart;
+    renderHold(elapsed);
+
+    if (elapsed >= HOLD_MS) {
+      if (wasReleased) finishHoldBot();
+      else finishHoldVerified();
+      return;
+    }
+    holdRaf = requestAnimationFrame(tickHold);
+  }
+
+  function finishHoldVerified() {
+    holdPhase = 'verified';
+    if (holdRaf) { cancelAnimationFrame(holdRaf); holdRaf = null; }
+
+    holdBar.style.width = '100%';
+    holdTimer.textContent = '0s';
+    holdLabelSuffix().textContent = ' ' + I18N.holdDone;
+    holdBtn.classList.remove('released');
+    holdBtn.classList.add('done');
+
+    captcha.verification = captcha.issueToken(100);
+    setDot('ok');
+    badgeText.innerHTML = 'Verificado por <strong>ezCAPTCHA Invisible</strong>';
+    setMsg(I18N.ok, 'ok');
+
+    setTimeout(() => {
+      challenge.hidden = true;
+      finalize({ score: 100 });
+    }, 450);
+  }
+
+  function finishHoldBot() {
+    holdPhase = 'bot';
+    if (holdRaf) { cancelAnimationFrame(holdRaf); holdRaf = null; }
+
+    holdBar.style.width = '100%';
+    holdTimer.textContent = '0s';
+    holdLabelSuffix().textContent = ' Detectado';
+    holdBtn.classList.remove('released');
+    holdBtn.classList.add('bot');
+    holdBtn.disabled = true;
+
+    lockPageAsBot();
+  }
+
+  function lockPageAsBot() {
+    pageLocked = true;
+    setDot('bad');
+    badgeText.textContent = 'Acceso bloqueado';
+    setMsg(I18N.botDetected, 'err');
+    userEl.disabled = true;
+    passEl.disabled = true;
+    togglePwd.disabled = true;
+    btn.disabled = true;
+    lockedPanel.hidden = false;
+  }
+
+  /* ---------- DETECCIÓN DE SUELTA A NIVEL DE WINDOW ----------
+     Estos listeners capturan la suelta SIEMPRE, sin importar dónde
+     esté el puntero en ese momento. Es la clave del fix. */
+  window.addEventListener('pointerup', (e) => {
+    if (e.target !== holdBtn) markReleased(I18N.holdReleased);
+    else markReleased(I18N.holdReleased);
+  }, true);
+  window.addEventListener('pointercancel', () => {
+    markReleased(I18N.holdCanceled);
+  }, true);
+  window.addEventListener('blur', () => {
+    markReleased(I18N.holdBlur);
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) markReleased(I18N.holdBlur);
+  });
+
+  /* ---------- INICIO DEL HOLD ---------- */
+  holdBtn.addEventListener('pointerdown', (e) => {
+    if (pageLocked) return;
+    // NO usar preventDefault ni setPointerCapture: pueden tragar el pointerup
+    beginHold();
+  });
+
+  /* Teclado */
+  holdBtn.addEventListener('keydown', (e) => {
+    if ((e.key === ' ' || e.key === 'Enter') && holdPhase === 'idle') {
+      e.preventDefault();
+      beginHold();
+    }
+  });
+  holdBtn.addEventListener('keyup', (e) => {
+    if ((e.key === ' ' || e.key === 'Enter') && holdPhase === 'running') {
+      e.preventDefault();
+      markReleased(I18N.holdReleased);
+    }
+  });
+
+  /* Botón de recarga */
+  reloadBtn.addEventListener('click', () => window.location.reload());
+
+  /* ============================================================
+     Envío del formulario
+     ============================================================ */
+  function finalize(result) {
+    setMsg(I18N.submitOk + (result && result.score ? ' · ' + result.score + '/100' : ''), 'ok');
+    setDot('ok');
+  }
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+    if (submitting || pageLocked) return;
+    if (!validateForm()) { setMsg(I18N.invalidForm, 'err'); return; }
+    if (captcha.isTokenValid()) { finalize(captcha.verification); return; }
+
+    submitting = true;
+    setLoading(true);
+    setMsg(I18N.verifying);
+
+    const minDelay = new Promise((r) => setTimeout(r, CONFIG.uiDelay));
+    const [result] = await Promise.all([captcha.verify(), minDelay]);
+
+    setLoading(false);
+    submitting = false;
+
+    if (result.locked) {
+      setDot('bad');
+      setMsg(I18N.locked.replace('%s', result.remaining), 'err');
+      return;
+    }
+    if (result.success) {
+      setDot('ok');
+      badgeText.innerHTML = 'Verificado por <strong>ezCAPTCHA Invisible</strong>';
+      setMsg(I18N.ok + ' · ' + result.score + '/100', 'ok');
+      finalize(result);
+    } else {
+      setDot('bad');
+      setMsg(I18N.fail + ' (' + result.score + '/100). ' + I18N.challenge, 'err');
+      challenge.hidden = false;
+      holdBtn.focus();
+      if (CONFIG.debug) {
+        debugOut.style.display = 'block';
+        debugOut.textContent = JSON.stringify(result.breakdown, null, 2);
       }
     }
+  }
 
-    const ezInvisible = new EzCaptchaInvisible();
+  form.addEventListener('submit', handleSubmit);
 
-    async function handleFormSubmit(event) {
-      event.preventDefault();
-
-      const result = await ezInvisible.verify();
-
-      if (result.success) {
-        alert(`✅ Verificación Invisible Exitosa!\nPuntuación Humana: ${result.score}/100\n\nFormulario enviado correctamente.`);
-      } else {
-        alert(`⚠️ Comportamiento sospechoso o ejecución automatizada detectada (Puntuación: ${result.score}/100).\n\nActivando prueba biométrica física...`);
-        // Aquí se dispara el modal biométrico desplegado anteriormente
-      }
-    }
-  </script>
+  window.ezCAPTCHA = {
+    verify: () => captcha.verify(),
+    reset: () => window.location.reload(),
+    getToken: () => (captcha.isTokenValid() ? captcha.verification : null),
+    getScore: () => captcha.lastScore,
+    config: CONFIG
+  };
+})();
+</script>
 </body>
 </html>
