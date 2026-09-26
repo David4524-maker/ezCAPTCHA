@@ -1,288 +1,408 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ezCAPTCHA - Anti-Linear Detection</title>
-  <style>
-    :root {
-      --ez-primary: #009ee3;
-      --ez-success: #10b981;
-      --ez-danger: #ef4444;
-      --ez-bg: #0f172a;
-      --ez-border: #cbd5e1;
-      --ez-text: #1e293b;
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ezCAPTCHA - Anti-Linear Detection</title>
+<style>
+  :root {
+    --ez-primary: #009ee3; --ez-success: #10b981; --ez-danger: #ef4444;
+    --ez-warning: #f59e0b; --ez-bg: #0f172a; --ez-border: #cbd5e1;
+    --ez-text: #1e293b; --ez-muted: #64748b;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+  body {
+    background: var(--ez-bg); color: var(--ez-text); min-height: 100vh;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px;
+  }
+  .ez-container {
+    background: white; padding: 20px; border-radius: 14px;
+    box-shadow: 0 15px 25px -5px rgba(0,0,0,.3); width: 100%; max-width: 340px;
+    border: 1px solid #334155;
+  }
+  .ez-captcha-box {
+    width: 100%; background: #f8fafc; border: 2px solid var(--ez-border);
+    border-radius: 10px; padding: 12px 16px; display: flex; align-items: center;
+    justify-content: space-between; user-select: none; transition: all .25s ease;
+  }
+  .ez-checkbox-wrapper { display: flex; align-items: center; gap: 12px; cursor: pointer; }
+  .ez-checkbox {
+    width: 28px; height: 28px; border: 2.5px solid #94a3b8; border-radius: 6px;
+    background: white; display: flex; align-items: center; justify-content: center;
+    transition: all .2s ease; position: relative;
+  }
+  .ez-spinner {
+    display: none; width: 16px; height: 16px; border: 3px solid #cbd5e1;
+    border-top-color: var(--ez-primary); border-radius: 50%; animation: spin .6s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .ez-checkmark { display: none; color: white; font-weight: bold; font-size: 1.1rem; }
+  .ez-text { font-size: .92rem; font-weight: 600; color: #334155; transition: color .2s; }
+  .ez-branding { display: flex; flex-direction: column; align-items: flex-end; }
+  .ez-logo-container { display: flex; align-items: center; gap: 6px; }
+  .ez-logo-icon { width: 18px; height: 22px; }
+  .ez-logo { font-weight: 900; font-size: .9rem; color: #0f172a; }
+  .ez-subtext { font-size: .62rem; color: #94a3b8; font-weight: 600; }
+  .ez-captcha-box.verified { border-color: var(--ez-success); background: #f0fdf4; }
+  .ez-captcha-box.verified .ez-checkbox { background: var(--ez-success); border-color: var(--ez-success); }
+  .ez-captcha-box.verified .ez-text { color: #065f46; }
+  .ez-captcha-box.failed { border-color: var(--ez-danger); background: #fef2f2; }
+  .ez-captcha-box.failed .ez-checkbox { background: var(--ez-danger); border-color: var(--ez-danger); }
+  .ez-captcha-box.failed .ez-text { color: #b91c1c; }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-    }
+  .ez-hold-challenge {
+    margin-top: 14px; padding: 14px; border-radius: 10px;
+    background: #fff7ed; border: 1px dashed var(--ez-warning); text-align: center;
+  }
+  .ez-hold-challenge p { font-size: .78rem; color: #92400e; margin-bottom: 10px; font-weight: 600; line-height: 1.35; }
+  .ez-hold-challenge small { display:block; margin-top:6px; font-weight:500; font-size:.68rem; color:#b45309; }
+  .ez-hold-btn {
+    position: relative; width: 100%; padding: 14px; border-radius: 10px;
+    border: 2px solid var(--ez-warning); background: white; color: #92400e;
+    font-weight: 700; font-size: .9rem; cursor: pointer; overflow: hidden;
+    touch-action: none; user-select: none; -webkit-user-select: none;
+    transition: border-color .2s, transform .1s, color .2s, background .2s;
+  }
+  .ez-hold-btn:active:not(:disabled) { transform: scale(.98); }
+  .ez-hold-btn:disabled { opacity: .6; cursor: not-allowed; }
+  .ez-hold-progress {
+    position: absolute; inset: 0; width: 0%;
+    background: linear-gradient(90deg, rgba(245,158,11,.5), rgba(16,185,129,.55));
+    transition: width .08s linear, background .2s;
+  }
+  .ez-hold-btn span { position: relative; z-index: 1; display: inline-block; }
+  .ez-hold-btn .ez-hold-timer {
+    display: inline-block; min-width: 2ch; font-variant-numeric: tabular-nums;
+    font-size: 1.05rem; margin-right: 4px; color: var(--ez-primary);
+  }
+  .ez-hold-btn.released { border-color: var(--ez-danger); color: #b91c1c; }
+  .ez-hold-btn.released .ez-hold-progress {
+    background: linear-gradient(90deg, rgba(239,68,68,.5), rgba(239,68,68,.75));
+  }
+  .ez-hold-btn.done { border-color: var(--ez-success); color: #065f46; }
+  .ez-hold-btn.done .ez-hold-progress { background: var(--ez-success); }
+  .ez-hold-btn.bot { border-color: var(--ez-danger); color: #b91c1c; }
+  .ez-hold-btn.bot .ez-hold-progress { background: var(--ez-danger); }
 
-    body {
-      background: var(--ez-bg);
-      color: var(--ez-text);
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-    }
+  .ez-status-msg {
+    margin-top: 12px; font-size: .78rem; text-align: center;
+    min-height: 1.2em; color: var(--ez-muted);
+  }
+  .ez-status-msg.ok { color: var(--ez-success); font-weight: 600; }
+  .ez-status-msg.err { color: var(--ez-danger); font-weight: 600; }
+  .ez-status-msg.warn { color: var(--ez-warning); font-weight: 600; }
 
-    .ez-container {
-      background: white;
-      padding: 20px;
-      border-radius: 14px;
-      box-shadow: 0 15px 25px -5px rgba(0, 0, 0, 0.3);
-      width: 100%;
-      max-width: 340px;
-      border: 1px solid #334155;
-    }
+  .ez-locked-panel {
+    margin-top: 14px; padding: 14px; border-radius: 10px;
+    background: #fef2f2; border: 1px solid var(--ez-danger);
+    text-align: center; font-size: .8rem; color: var(--ez-danger);
+    animation: ezslide .35s ease-out;
+  }
+  @keyframes ezslide { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+  .ez-locked-panel button {
+    margin-top: 10px; padding: 8px 14px; border-radius: 8px; border: 0;
+    background: var(--ez-danger); color: #fff; font-weight: 700; cursor: pointer;
+    font-size: .8rem;
+  }
 
-    .ez-captcha-box {
-      width: 100%;
-      background: #f8fafc;
-      border: 2px solid var(--ez-border);
-      border-radius: 10px;
-      padding: 12px 16px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      user-select: none;
-      transition: all 0.25s ease;
-    }
-
-    .ez-checkbox-wrapper {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      cursor: pointer;
-    }
-
-    .ez-checkbox {
-      width: 28px;
-      height: 28px;
-      border: 2.5px solid #94a3b8;
-      border-radius: 6px;
-      background: white;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.2s ease;
-      position: relative;
-    }
-
-    .ez-spinner {
-      display: none;
-      width: 16px;
-      height: 16px;
-      border: 3px solid #cbd5e1;
-      border-top-color: var(--ez-primary);
-      border-radius: 50%;
-      animation: spin 0.6s linear infinite;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    .ez-checkmark {
-      display: none;
-      color: white;
-      font-weight: bold;
-      font-size: 1.1rem;
-    }
-
-    .ez-text {
-      font-size: 0.92rem;
-      font-weight: 600;
-      color: #334155;
-      transition: color 0.2s;
-    }
-
-    .ez-branding {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-    }
-
-    .ez-logo-container {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .ez-logo-icon {
-      width: 18px;
-      height: 22px;
-    }
-
-    .ez-logo {
-      font-weight: 900;
-      font-size: 0.9rem;
-      color: #0f172a;
-    }
-
-    .ez-subtext {
-      font-size: 0.62rem;
-      color: #94a3b8;
-      font-weight: 600;
-    }
-
-    /* Estado Verificado */
-    .ez-captcha-box.verified {
-      border-color: var(--ez-success);
-      background: #f0fdf4;
-    }
-
-    .ez-captcha-box.verified .ez-checkbox {
-      background: var(--ez-success);
-      border-color: var(--ez-success);
-    }
-
-    .ez-captcha-box.verified .ez-text {
-      color: #065f46;
-    }
-
-    /* Estado Bloqueado/Error */
-    .ez-captcha-box.failed {
-      border-color: var(--ez-danger);
-      background: #fef2f2;
-    }
-
-    .ez-captcha-box.failed .ez-checkbox {
-      background: var(--ez-danger);
-      border-color: var(--ez-danger);
-    }
-  </style>
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; }
+  }
+</style>
 </head>
 <body>
 
-  <div class="ez-container">
-    <div class="ez-captcha-box" id="ezBox">
-      <div class="ez-checkbox-wrapper" id="ezTrigger">
-        <div class="ez-checkbox" id="ezCheckbox">
-          <div class="ez-spinner" id="ezSpinner"></div>
-          <span class="ez-checkmark" id="ezCheckmark">✓</span>
-        </div>
-        <span class="ez-text" id="ezText">No soy un robot</span>
+<div class="ez-container">
+  <div class="ez-captcha-box" id="ezBox">
+    <div class="ez-checkbox-wrapper" id="ezTrigger">
+      <div class="ez-checkbox" id="ezCheckbox">
+        <div class="ez-spinner" id="ezSpinner"></div>
+        <span class="ez-checkmark" id="ezCheckmark">✓</span>
       </div>
+      <span class="ez-text" id="ezText">No soy un robot</span>
+    </div>
 
-      <div class="ez-branding">
-        <div class="ez-logo-container">
-          <svg class="ez-logo-icon" viewBox="0 0 100 120">
-            <polygon points="10,10 50,45 50,112 10,77" fill="#009ee3" stroke="#009ee3" stroke-width="6" stroke-linejoin="round"/>
-            <polygon points="50,45 90,10 90,77 50,112" fill="#c3c3c3" stroke="#009ee3" stroke-width="6" stroke-linejoin="round"/>
-          </svg>
-          <span class="ez-logo">ezCAPTCHA</span>
-        </div>
-        <span class="ez-subtext">Curve Protection</span>
+    <div class="ez-branding">
+      <div class="ez-logo-container">
+        <svg class="ez-logo-icon" viewBox="0 0 100 120">
+          <polygon points="10,10 50,45 50,112 10,77" fill="#009ee3" stroke="#009ee3" stroke-width="6" stroke-linejoin="round"/>
+          <polygon points="50,45 90,10 90,77 50,112" fill="#c3c3c3" stroke="#009ee3" stroke-width="6" stroke-linejoin="round"/>
+        </svg>
+        <span class="ez-logo">ezCAPTCHA</span>
       </div>
+      <span class="ez-subtext">Curve Protection</span>
     </div>
   </div>
 
-  <script>
-    let mousePath = [];
-    let isVerified = false;
+  <div class="ez-hold-challenge" id="ezHoldChallenge" hidden>
+    <p id="ezHoldText">
+      Trayectoria lineal detectada.<br>
+      <strong>Mantén pulsado 5 segundos sin soltar.</strong>
+      <small>Si sueltas antes, el contador sigue y serás marcado como bot.</small>
+    </p>
+    <button type="button" class="ez-hold-btn" id="ezHoldBtn" aria-describedby="ezHoldText">
+      <div class="ez-hold-progress" id="ezHoldProgress"></div>
+      <span id="ezHoldLabel">
+        <span class="ez-hold-timer" id="ezHoldTimer">5s</span>
+        Mantener pulsado
+      </span>
+    </button>
+  </div>
 
-    // Rastrear la trayectoria continua del cursor
-    window.addEventListener('mousemove', (e) => {
-      if (isVerified) return;
-      
-      mousePath.push({ x: e.clientX, y: e.clientY, time: Date.now() });
+  <p class="ez-status-msg" id="ezStatusMsg" role="status" aria-live="polite"></p>
 
-      // Guardar máximo 25 muestras de movimiento previo al clic
-      if (mousePath.length > 25) mousePath.shift();
-    });
+  <div class="ez-locked-panel" id="ezLocked" hidden>
+    <strong>🤖 Robot detectado.</strong>
+    <p style="margin-top:6px;">La verificación se ha bloqueado.</p>
+    <button type="button" id="ezReload">Recargar página</button>
+  </div>
+</div>
 
-    const trigger = document.getElementById('ezTrigger');
-    const box = document.getElementById('ezBox');
-    const checkbox = document.getElementById('ezCheckbox');
-    const spinner = document.getElementById('ezSpinner');
-    const checkmark = document.getElementById('ezCheckmark');
-    const text = document.getElementById('ezText');
+<script>
+(function () {
+  'use strict';
 
-    trigger.addEventListener('click', function(e) {
-      if (isVerified) return;
+  const CONFIG = {
+    holdMs: 5000,
+    straightnessMax: 2.5,
+    minPathPoints: 4,
+    tokenTTL: 300000
+  };
 
-      // 1. Validar que el evento sea generado por un usuario real y no un script trigger
-      if (!e.isTrusted) {
-        failVerification("Clic simulado mediante script (.click())");
-        return;
-      }
+  const HOLD_MS = CONFIG.holdMs;
 
-      spinner.style.display = 'block';
+  let mousePath = [];
+  let isVerified = false;
+  let pageLocked = false;
 
-      setTimeout(() => {
-        // 2. Evaluar si la trayectoria previa es una línea recta perfecta
-        const isStraight = checkStraightLine(mousePath);
+  /* Estado del reto de 5 s */
+  let holdPhase = 'idle';     // idle | running | verified | bot
+  let holdStart = 0;
+  let holdRaf = null;
+  let wasReleased = false;
 
-        if (isStraight) {
-          failVerification("Trayectoria lineal detectada (Bot)");
-        } else {
-          passVerification();
-        }
-      }, 250);
-    });
+  window.addEventListener('pointermove', (e) => {
+    if (isVerified || pageLocked) return;
+    mousePath.push({ x: e.clientX, y: e.clientY, time: Date.now() });
+    if (mousePath.length > 25) mousePath.shift();
+  });
 
-    /**
-     * Algoritmo de detección de línea recta:
-     * Calcula la desviación máxima (curvatura) de todos los puntos
-     * respecto a la recta trazada entre el punto inicial y el punto final.
-     */
-    function checkStraightLine(points) {
-      // Si no se registraron suficientes puntos o el clic ocurrió sin movimiento previo
-      if (points.length < 4) return true;
+  const trigger       = document.getElementById('ezTrigger');
+  const box           = document.getElementById('ezBox');
+  const checkbox      = document.getElementById('ezCheckbox');
+  const spinner       = document.getElementById('ezSpinner');
+  const checkmark     = document.getElementById('ezCheckmark');
+  const text          = document.getElementById('ezText');
+  const holdChallenge = document.getElementById('ezHoldChallenge');
+  const holdBtn       = document.getElementById('ezHoldBtn');
+  const holdBar       = document.getElementById('ezHoldProgress');
+  const holdTimer     = document.getElementById('ezHoldTimer');
+  const holdLabel     = document.getElementById('ezHoldLabel');
+  const statusMsg     = document.getElementById('ezStatusMsg');
+  const lockedPanel   = document.getElementById('ezLocked');
+  const reloadBtn     = document.getElementById('ezReload');
 
-      const pStart = points[0];
-      const pEnd = points[points.length - 1];
+  const holdLabelSuffix = () => holdLabel.childNodes[holdLabel.childNodes.length - 1];
 
-      const dx = pEnd.x - pStart.x;
-      const dy = pEnd.y - pStart.y;
-      const lineLengthSq = dx * dx + dy * dy;
+  function setStatus(textContent, type) {
+    statusMsg.textContent = textContent || '';
+    statusMsg.className = 'ez-status-msg' + (type ? ' ' + type : '');
+  }
 
-      // Si el desplazamiento total fue casi nulo (salto instantáneo al botón)
-      if (lineLengthSq < 15) return true;
-
-      let maxDeviation = 0;
-
-      // Calcular la distancia perpendicular de cada punto intermedio a la recta pStart -> pEnd
-      for (let i = 1; i < points.length - 1; i++) {
-        const p = points[i];
-        
-        // Fórmula de distancia perpendicular de un punto a una recta
-        const numerator = Math.abs(dy * p.x - dx * p.y + pEnd.x * pStart.y - pEnd.y * pStart.x);
-        const distance = numerator / Math.sqrt(lineLengthSq);
-
-        if (distance > maxDeviation) {
-          maxDeviation = distance;
-        }
-      }
-
-      // Umbral de tolerancia: Si la curvatura máxima es inferior a 2.5 píxeles, se considera recta
-      console.log("[ezCAPTCHA] Curvatura máxima del cursor:", maxDeviation.toFixed(2), "px");
-      return maxDeviation < 2.5;
+  /* ============================================================
+     Clic principal
+     ============================================================ */
+  trigger.addEventListener('click', function (e) {
+    if (isVerified || pageLocked) return;
+    if (!e.isTrusted) {
+      failVerification("Clic simulado mediante script (.click())");
+      return;
     }
 
-    function passVerification() {
-      isVerified = true;
+    spinner.style.display = 'block';
+    text.innerText = 'Analizando trayectoria…';
+
+    setTimeout(() => {
+      const isStraight = checkStraightLine(mousePath);
       spinner.style.display = 'none';
-      checkmark.style.display = 'block';
-      box.classList.add('verified');
-      text.innerText = "Verificado";
-    }
 
-    function failVerification(reason) {
-      spinner.style.display = 'none';
-      box.classList.add('failed');
-      checkbox.innerHTML = '<span style="color:white; font-weight:bold;">✕</span>';
-      text.innerText = "Robot Detectado";
-      text.style.color = '#b91c1c';
-      console.warn("[ezCAPTCHA Bloqueado]:", reason);
+      if (isStraight) {
+        text.innerText = 'Verificación adicional';
+        holdChallenge.hidden = false;
+        holdBtn.focus();
+        setStatus('Mantén pulsado 5 s sin soltar. Si sueltas, el contador sigue.', 'warn');
+      } else {
+        passVerification();
+      }
+    }, 350);
+  });
+
+  function checkStraightLine(points) {
+    if (points.length < CONFIG.minPathPoints) return true;
+    const pStart = points[0];
+    const pEnd = points[points.length - 1];
+    const dx = pEnd.x - pStart.x;
+    const dy = pEnd.y - pStart.y;
+    const lineLengthSq = dx * dx + dy * dy;
+    if (lineLengthSq < 15) return true;
+
+    let maxDeviation = 0;
+    for (let i = 1; i < points.length - 1; i++) {
+      const p = points[i];
+      const numerator = Math.abs(dy * p.x - dx * p.y + pEnd.x * pStart.y - pEnd.y * pStart.x);
+      const distance = numerator / Math.sqrt(lineLengthSq);
+      if (distance > maxDeviation) maxDeviation = distance;
     }
-  </script>
+    return maxDeviation < CONFIG.straightnessMax;
+  }
+
+  /* ============================================================
+     RETO 5 s — una vez iniciado el contador NUNCA se detiene
+     ============================================================ */
+  function renderHold(elapsed) {
+    const p = Math.min(1, elapsed / HOLD_MS);
+    holdBar.style.width = (p * 100) + '%';
+    const remaining = Math.max(0, HOLD_MS - elapsed);
+    const secs = Math.ceil(remaining / 1000);
+    holdTimer.textContent = secs > 0 ? secs + 's' : '0s';
+    holdLabelSuffix().textContent = ' ' + (secs > 0 ? 'Mantener pulsado' : 'Verificado');
+  }
+
+  function beginHold() {
+    if (pageLocked || holdPhase !== 'idle') return;
+    holdPhase = 'running';
+    holdStart = performance.now();
+    wasReleased = false;
+    holdBtn.classList.remove('done', 'bot', 'released');
+    setStatus('Mantén pulsado sin soltar…', 'warn');
+    requestAnimationFrame(tickHold);
+  }
+
+  function markReleased(reason) {
+    if (holdPhase !== 'running' || wasReleased) return;
+    wasReleased = true;
+    holdBtn.classList.add('released');
+    setStatus(reason, 'err');
+  }
+
+  function tickHold() {
+    if (holdPhase !== 'running') return;
+    const elapsed = performance.now() - holdStart;
+    renderHold(elapsed);
+
+    if (elapsed >= HOLD_MS) {
+      if (wasReleased) finishHoldBot();
+      else finishHoldVerified();
+      return;
+    }
+    holdRaf = requestAnimationFrame(tickHold);
+  }
+
+  function finishHoldVerified() {
+    holdPhase = 'verified';
+    if (holdRaf) { cancelAnimationFrame(holdRaf); holdRaf = null; }
+
+    holdBar.style.width = '100%';
+    holdTimer.textContent = '0s';
+    holdLabelSuffix().textContent = ' Verificado';
+    holdBtn.classList.remove('released');
+    holdBtn.classList.add('done');
+
+    setStatus('Verificación completada correctamente', 'ok');
+    setTimeout(() => {
+      holdChallenge.hidden = true;
+      passVerification();
+    }, 400);
+  }
+
+  function finishHoldBot() {
+    holdPhase = 'bot';
+    if (holdRaf) { cancelAnimationFrame(holdRaf); holdRaf = null; }
+
+    holdBar.style.width = '100%';
+    holdTimer.textContent = '0s';
+    holdLabelSuffix().textContent = ' Detectado';
+    holdBtn.classList.remove('released');
+    holdBtn.classList.add('bot');
+    holdBtn.disabled = true;
+
+    lockPageAsBot();
+  }
+
+  function lockPageAsBot() {
+    pageLocked = true;
+    failVerification('Contador completado sin mantener pulsado');
+    lockedPanel.hidden = false;
+    setStatus('🤖 Robot detectado. Recarga la página para reiniciar.', 'err');
+  }
+
+  /* ---------- DETECCIÓN DE SUELTA A NIVEL DE WINDOW ----------
+     Captura la suelta SIEMPRE, sin importar dónde esté el puntero. */
+  window.addEventListener('pointerup', () => {
+    markReleased('Has soltado el botón. El contador continúa…');
+  }, true);
+  window.addEventListener('pointercancel', () => {
+    markReleased('Puntero cancelado. El contador continúa…');
+  }, true);
+  window.addEventListener('blur', () => {
+    markReleased('Ventana sin foco. El contador continúa…');
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) markReleased('Pestaña oculta. El contador continúa…');
+  });
+
+  /* ---------- INICIO DEL HOLD ---------- */
+  holdBtn.addEventListener('pointerdown', (e) => {
+    if (pageLocked) return;
+    // Sin preventDefault ni setPointerCapture
+    beginHold();
+  });
+
+  /* Teclado */
+  holdBtn.addEventListener('keydown', (e) => {
+    if ((e.key === ' ' || e.key === 'Enter') && holdPhase === 'idle') {
+      e.preventDefault();
+      beginHold();
+    }
+  });
+  holdBtn.addEventListener('keyup', (e) => {
+    if ((e.key === ' ' || e.key === 'Enter') && holdPhase === 'running') {
+      e.preventDefault();
+      markReleased('Has soltado la tecla. El contador continúa…');
+    }
+  });
+
+  reloadBtn.addEventListener('click', () => window.location.reload());
+
+  /* ============================================================
+     Estados finales
+     ============================================================ */
+  function passVerification() {
+    isVerified = true;
+    spinner.style.display = 'none';
+    checkmark.style.display = 'block';
+    box.classList.add('verified');
+    box.classList.remove('failed');
+    text.innerText = 'Verificado';
+    text.style.color = '#065f46';
+  }
+
+  function failVerification(reason) {
+    spinner.style.display = 'none';
+    box.classList.add('failed');
+    box.classList.remove('verified');
+    checkbox.innerHTML = '<span style="color:white; font-weight:bold;">✕</span>';
+    text.innerText = 'Robot Detectado';
+    text.style.color = '#b91c1c';
+    console.warn("[ezCAPTCHA Bloqueado]:", reason);
+  }
+
+  window.ezCAPTCHA = {
+    reset: () => window.location.reload(),
+    isVerified: () => isVerified,
+    isLocked: () => pageLocked
+  };
+})();
+</script>
 </body>
 </html>
